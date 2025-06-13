@@ -191,7 +191,7 @@ const Navbar: React.FC = () => {
         <div className="border-t border-gray-200 p-4">
           {/* User Profile */}
           <div
-            className={`flex items-center mt-4 px-3 py-2 ${
+            className={`flex items-center px-3 py-2 ${
               !isExpanded ? "justify-center" : ""
             }`}
           >
