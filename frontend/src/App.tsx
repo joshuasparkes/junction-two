@@ -28,14 +28,6 @@ const App: React.FC = () => {
             <Route path="/travel-manager" element={<TravelManagerPage />} />
             <Route path="/approvals" element={<ApprovalsPage />} />
             <Route path="/help" element={<HelpSupportPage />} />
-            <Route
-              path="/bookings"
-              element={
-                <div className="p-8 text-center">
-                  All Bookings - Coming Soon
-                </div>
-              }
-            />
           </Routes>
         </div>
       </Router>
