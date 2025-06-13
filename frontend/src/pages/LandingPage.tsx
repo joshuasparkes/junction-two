@@ -12,20 +12,7 @@ const LandingPage: React.FC = () => {
             className="h-8"
           />
         </div>
-        <div className="hidden md:flex items-center space-x-8">
-          <a href="#" className="text-gray-700 hover:text-gray-900">
-            Corporate
-          </a>
-          <a href="#" className="text-gray-700 hover:text-gray-900">
-            Agencies
-          </a>
-          <a href="#" className="text-gray-700 hover:text-gray-900">
-            Suppliers
-          </a>
-          <a href="#" className="text-gray-700 hover:text-gray-900">
-            Developers
-          </a>
-        </div>
+        <div className="hidden md:flex items-center space-x-8"></div>
         <Link
           to="/login"
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -37,7 +24,7 @@ const LandingPage: React.FC = () => {
       <div className="relative bg-gradient-to-r from-amber-50 to-amber-100 overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
+            src="https://images.unsplash.com/photo-1500835556837-99ac94a94552?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
             alt="Travel background"
             className="w-full h-full object-cover opacity-20"
           />
