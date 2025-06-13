@@ -22,7 +22,7 @@ const LoginPage: React.FC = () => {
           />
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-200">
-          Sign in to your account
+          This is a sandbox so you can just click sign in{" "}
         </h2>
       </div>
 
