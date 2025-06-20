@@ -17,7 +17,9 @@ import TravelManagerPage from "./pages/TravelManagerPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import HelpSupportPage from "./pages/HelpSupportPage";
 import UserProfilePage from "./pages/UserProfilePage";
-import TrainSearchPage from "./pages/TrainSearchPage";
+import TravelerDetailsPage from "./pages/TravelerDetailsPage";
+import PaymentPage from "./pages/PaymentPage";
+import BookingConfirmationPage from "./pages/BookingConfirmationPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const App: React.FC = () => {
@@ -32,69 +34,117 @@ const App: React.FC = () => {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
-                
+
                 {/* Protected routes - require authentication */}
-                <Route path="/dashboard" element={
-                  <ProtectedRoute requireOrganization>
-                    <DashboardPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/book" element={
-                  <ProtectedRoute>
-                    <BookTravelPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/trains" element={
-                  <ProtectedRoute>
-                    <TrainSearchPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/plan-trip" element={
-                  <ProtectedRoute>
-                    <PlanTripPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/trips" element={
-                  <ProtectedRoute>
-                    <TripsPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/trips/:id" element={
-                  <ProtectedRoute>
-                    <TripDetailPage />
-                  </ProtectedRoute>
-                } />
-                
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute requireOrganization>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/book"
+                  element={
+                    <ProtectedRoute>
+                      <BookTravelPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/plan-trip"
+                  element={
+                    <ProtectedRoute>
+                      <PlanTripPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/trips"
+                  element={
+                    <ProtectedRoute>
+                      <TripsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/trips/:id"
+                  element={
+                    <ProtectedRoute>
+                      <TripDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Manager and booker only routes */}
-                <Route path="/travel-manager" element={
-                  <ProtectedRoute requiredRoles={['manager', 'booker']}>
-                    <TravelManagerPage />
-                  </ProtectedRoute>
-                } />
-                
+                <Route
+                  path="/travel-manager"
+                  element={
+                    <ProtectedRoute requiredRoles={["manager", "booker"]}>
+                      <TravelManagerPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Manager only routes */}
-                <Route path="/approvals" element={
-                  <ProtectedRoute requiredRoles={['manager']}>
-                    <ApprovalsPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/help" element={
-                  <ProtectedRoute>
-                    <HelpSupportPage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <UserProfilePage />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/approvals"
+                  element={
+                    <ProtectedRoute requiredRoles={["manager"]}>
+                      <ApprovalsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/help"
+                  element={
+                    <ProtectedRoute>
+                      <HelpSupportPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <UserProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/traveler-details"
+                  element={
+                    <ProtectedRoute>
+                      <TravelerDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/payment"
+                  element={
+                    <ProtectedRoute>
+                      <PaymentPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/booking-confirmation"
+                  element={
+                    <ProtectedRoute>
+                      <BookingConfirmationPage />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
             </div>
           </Router>

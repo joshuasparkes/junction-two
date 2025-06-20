@@ -47,10 +47,7 @@ class Trip(Base):
     )
     
     # One-to-many relationship with bookings
-    # flight_bookings = relationship("FlightBooking", back_populates="trip")
-    # hotel_bookings = relationship("HotelBooking", back_populates="trip")
-    # car_bookings = relationship("CarBooking", back_populates="trip")
-    # train_bookings = relationship("TrainBooking", back_populates="trip")
+    bookings = relationship("Booking", back_populates="trip")
     
     def __repr__(self):
         return f"<Trip {self.name}>"

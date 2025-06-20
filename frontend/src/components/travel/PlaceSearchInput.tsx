@@ -151,9 +151,7 @@ const PlaceSearchInput: React.FC<PlaceSearchInputProps> = ({
       </label>
       
       <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          {getIcon()}
-        </div>
+        
         
         <input
           ref={inputRef}
@@ -164,7 +162,7 @@ const PlaceSearchInput: React.FC<PlaceSearchInputProps> = ({
           onBlur={handleBlur}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+          className={`w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
             disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
           } ${error ? 'border-red-300' : ''}`}
         />
@@ -181,19 +179,7 @@ const PlaceSearchInput: React.FC<PlaceSearchInputProps> = ({
         <p className="mt-1 text-sm text-red-600">{error}</p>
       )}
 
-      {/* Selected place info */}
-      {value && (
-        <div className="mt-2 flex items-center text-sm text-gray-600">
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span>
-            {value.name}, {value.countryName}
-            {value.placeTypes.includes('railway-station') && ' (Railway Station)'}
-            {value.placeTypes.includes('airport') && ' (Airport)'}
-          </span>
-        </div>
-      )}
+      
 
       {/* Suggestions dropdown */}
       {showSuggestions && suggestions.length > 0 && (

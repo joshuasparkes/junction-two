@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "../components/common/Layout";
 import PlaceSearchInput from "../components/travel/PlaceSearchInput";
 import { Place } from "../services/placesService";
@@ -7,6 +7,7 @@ import { searchTrains, getReturnOffers, TrainOffer, formatTime, formatDate, form
 
 const BookTravelPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("flights");
   const [tripType, setTripType] = useState("roundtrip");
   const [classType, setClassType] = useState("economy");
@@ -28,6 +29,7 @@ const BookTravelPage: React.FC = () => {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [showReturnOptions, setShowReturnOptions] = useState(false);
+  const [currentView, setCurrentView] = useState<'outbound' | 'return'>('outbound');
 
   // Get initial tab from URL params
   useEffect(() => {
@@ -73,6 +75,7 @@ const BookTravelPage: React.FC = () => {
       setReturnOffers([]);
       setSelectedOutboundOffer(null);
       setShowReturnOptions(false);
+      setCurrentView('outbound');
       
       if (results.message) {
         setSearchError(results.message);
@@ -100,6 +103,7 @@ const BookTravelPage: React.FC = () => {
       const returnResults = await getReturnOffers(trainSearchId, offer.id);
       setReturnOffers(returnResults.items);
       setShowReturnOptions(true);
+      setCurrentView('return');
       
       if (returnResults.message) {
         setSearchError(returnResults.message);
@@ -111,6 +115,24 @@ const BookTravelPage: React.FC = () => {
     } finally {
       setIsLoadingReturn(false);
     }
+  };
+
+  // Handle going back to outbound options
+  const handleBackToOutbound = () => {
+    setCurrentView('outbound');
+    setShowReturnOptions(false);
+    setSearchError(null);
+  };
+
+  // Handle booking navigation
+  const handleBookTrain = (offer: TrainOffer, isReturn: boolean = false) => {
+    navigate('/traveler-details', {
+      state: {
+        offer,
+        isReturn,
+        passengerCount: passengers
+      }
+    });
   };
 
   return (
@@ -126,7 +148,7 @@ const BookTravelPage: React.FC = () => {
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('flights')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'flights'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -139,7 +161,7 @@ const BookTravelPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('rail')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'rail'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -160,7 +182,7 @@ const BookTravelPage: React.FC = () => {
             <div className="flex space-x-4 mb-6">
             <button
               onClick={() => setTripType("roundtrip")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              className={`px-4 py-3 rounded-lg text-sm font-medium ${
                 tripType === "roundtrip"
                   ? "bg-blue-100 text-blue-700 border border-blue-300"
                   : "text-gray-600 hover:text-gray-900"
@@ -170,7 +192,7 @@ const BookTravelPage: React.FC = () => {
             </button>
             <button
               onClick={() => setTripType("oneway")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              className={`px-4 py-3 rounded-lg text-sm font-medium ${
                 tripType === "oneway"
                   ? "bg-blue-100 text-blue-700 border border-blue-300"
                   : "text-gray-600 hover:text-gray-900"
@@ -180,7 +202,7 @@ const BookTravelPage: React.FC = () => {
             </button>
             <button
               onClick={() => setTripType("multicity")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              className={`px-4 py-3 rounded-lg text-sm font-medium ${
                 tripType === "multicity"
                   ? "bg-blue-100 text-blue-700 border border-blue-300"
                   : "text-gray-600 hover:text-gray-900"
@@ -193,7 +215,7 @@ const BookTravelPage: React.FC = () => {
               <select
                 value={classType}
                 onChange={(e) => setClassType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="economy">Economy</option>
                 <option value="premium">Premium Economy</option>
@@ -210,7 +232,7 @@ const BookTravelPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <svg
                   className="w-4 h-4 inline mr-1"
                   fill="none"
@@ -229,12 +251,12 @@ const BookTravelPage: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter departure city"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <svg
                   className="w-4 h-4 inline mr-1"
                   fill="none"
@@ -253,7 +275,7 @@ const BookTravelPage: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter destination city"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button className="absolute right-3 top-8 p-1">
                 <svg
@@ -273,7 +295,7 @@ const BookTravelPage: React.FC = () => {
             </div>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <svg
                   className="w-4 h-4 inline mr-1"
                   fill="none"
@@ -291,13 +313,13 @@ const BookTravelPage: React.FC = () => {
               </label>
               <input
                 type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             {tripType === "roundtrip" && (
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   <svg
                     className="w-4 h-4 inline mr-1"
                     fill="none"
@@ -315,7 +337,7 @@ const BookTravelPage: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             )}
@@ -323,7 +345,7 @@ const BookTravelPage: React.FC = () => {
 
           <div className="flex items-center justify-between">
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <svg
                   className="w-4 h-4 inline mr-1"
                   fill="none"
@@ -339,7 +361,7 @@ const BookTravelPage: React.FC = () => {
                 </svg>
                 1 Adult
               </label>
-              <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option>1 Adult</option>
                 <option>2 Adults</option>
                 <option>3 Adults</option>
@@ -360,7 +382,7 @@ const BookTravelPage: React.FC = () => {
             <div className="flex space-x-4 mb-6">
               <button
                 onClick={() => setTripType("roundtrip")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                className={`px-4 py-3 rounded-lg text-sm font-medium ${
                   tripType === "roundtrip"
                     ? "bg-blue-100 text-blue-700 border border-blue-300"
                     : "text-gray-600 hover:text-gray-900"
@@ -370,7 +392,7 @@ const BookTravelPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setTripType("oneway")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                className={`px-4 py-3 rounded-lg text-sm font-medium ${
                   tripType === "oneway"
                     ? "bg-blue-100 text-blue-700 border border-blue-300"
                     : "text-gray-600 hover:text-gray-900"
@@ -383,7 +405,7 @@ const BookTravelPage: React.FC = () => {
                 <select
                   value={classType}
                   onChange={(e) => setClassType(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="standard">Standard</option>
                   <option value="first">First Class</option>
@@ -434,7 +456,7 @@ const BookTravelPage: React.FC = () => {
               </div>
 
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6m-6 0a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2V9a2 2 0 00-2-2" />
                   </svg>
@@ -445,13 +467,13 @@ const BookTravelPage: React.FC = () => {
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               {tripType === "roundtrip" && (
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6m-6 0a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2V9a2 2 0 00-2-2" />
                     </svg>
@@ -462,7 +484,7 @@ const BookTravelPage: React.FC = () => {
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
                     min={departureDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               )}
@@ -478,7 +500,7 @@ const BookTravelPage: React.FC = () => {
             <form onSubmit={handleTrainSearch}>
               <div className="flex items-center justify-between">
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
@@ -487,7 +509,7 @@ const BookTravelPage: React.FC = () => {
                   <select 
                     value={passengers}
                     onChange={(e) => setPassengers(parseInt(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={1}>1 Adult</option>
                     <option value={2}>2 Adults</option>
@@ -520,28 +542,49 @@ const BookTravelPage: React.FC = () => {
         {/* Train Search Results */}
         {activeTab === 'rail' && hasSearched && (
           <div className="mt-8 space-y-6">
-            {/* Outbound Results */}
+            {/* Results Container */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                {tripType === 'roundtrip' ? 'Outbound Journey' : 'Journey Options'}
-                {trainOffers.length > 0 && (
-                  <span className="text-base font-normal text-gray-600 ml-2">
-                    ({trainOffers.length} option{trainOffers.length !== 1 ? 's' : ''})
-                  </span>
+              {/* Header with Back Button */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {currentView === 'outbound' ? (
+                    tripType === 'roundtrip' ? 'Outbound Journey' : 'Journey Options'
+                  ) : (
+                    'Return Journey'
+                  )}
+                  {((currentView === 'outbound' ? trainOffers : returnOffers).length > 0) && (
+                    <span className="text-base font-normal text-gray-600 ml-2">
+                      ({(currentView === 'outbound' ? trainOffers : returnOffers).length} option{(currentView === 'outbound' ? trainOffers : returnOffers).length !== 1 ? 's' : ''})
+                    </span>
+                  )}
+                </h2>
+                
+                {/* Back Button for Return View */}
+                {currentView === 'return' && (
+                  <button
+                    onClick={handleBackToOutbound}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to outbound options
+                  </button>
                 )}
-              </h2>
+              </div>
 
-              {trainOffers.length > 0 ? (
+              {/* Display current offers based on view */}
+              {((currentView === 'outbound' ? trainOffers : returnOffers).length > 0) ? (
                 <div className="space-y-4">
-                  {trainOffers.map((offer) => (
+                  {(currentView === 'outbound' ? trainOffers : returnOffers).map((offer) => (
                     <div 
                       key={offer.id} 
                       className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
                         selectedOutboundOffer?.id === offer.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                       }`}
                     >
-                      {/* Only show the outbound trip for initial results */}
-                      {offer.trips.slice(0, 1).map((trip, tripIndex) => (
+                      {/* Show outbound or return trip based on current view */}
+                      {offer.trips.slice(currentView === 'outbound' ? 0 : 1, currentView === 'outbound' ? 1 : 2).map((trip, tripIndex) => (
                         <div key={tripIndex}>
                           {/* Trip header */}
                           <div className="flex items-center justify-between mb-3">
@@ -564,7 +607,7 @@ const BookTravelPage: React.FC = () => {
                                 €{offer.price.amount}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {offer.metadata.providerId}
+                                {currentView === 'return' ? 'Total: Outbound + Return' : offer.metadata.providerId}
                               </div>
                             </div>
                           </div>
@@ -593,26 +636,38 @@ const BookTravelPage: React.FC = () => {
 
                           {/* Action button */}
                           <div className="flex justify-end">
-                            {tripType === 'roundtrip' ? (
-                              <button 
-                                onClick={() => handleSelectOutbound(offer)}
-                                disabled={isLoadingReturn && selectedOutboundOffer?.id === offer.id}
-                                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                              >
-                                {isLoadingReturn && selectedOutboundOffer?.id === offer.id ? (
-                                  <div className="flex items-center">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Loading return options...
-                                  </div>
-                                ) : selectedOutboundOffer?.id === offer.id ? (
-                                  'Selected for return options'
-                                ) : (
-                                  'Select & view return options'
-                                )}
-                              </button>
+                            {currentView === 'outbound' ? (
+                              tripType === 'roundtrip' ? (
+                                <button 
+                                  onClick={() => handleSelectOutbound(offer)}
+                                  disabled={isLoadingReturn && selectedOutboundOffer?.id === offer.id}
+                                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                                >
+                                  {isLoadingReturn && selectedOutboundOffer?.id === offer.id ? (
+                                    <div className="flex items-center">
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                      Loading return options...
+                                    </div>
+                                  ) : selectedOutboundOffer?.id === offer.id ? (
+                                    'Selected for return options'
+                                  ) : (
+                                    'Select & view return options'
+                                  )}
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleBookTrain(offer, false)}
+                                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                                >
+                                  Book this train
+                                </button>
+                              )
                             ) : (
-                              <button className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium">
-                                Book this train
+                              <button 
+                                onClick={() => handleBookTrain(offer, true)}
+                                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                              >
+                                Book return journey (€{offer.price.amount})
                               </button>
                             )}
                           </div>
@@ -626,98 +681,21 @@ const BookTravelPage: React.FC = () => {
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
                   </svg>
-                  <p className="text-lg">No trains found for your search criteria</p>
-                  <p className="text-sm mt-2">Try adjusting your departure date or stations</p>
+                  <p className="text-lg">
+                    {currentView === 'outbound' 
+                      ? 'No trains found for your search criteria'
+                      : 'No return options found'
+                    }
+                  </p>
+                  <p className="text-sm mt-2">
+                    {currentView === 'outbound'
+                      ? 'Try adjusting your departure date or stations'
+                      : 'Try selecting a different outbound journey'
+                    }
+                  </p>
                 </div>
               )}
             </div>
-
-            {/* Return Journey Results */}
-            {tripType === 'roundtrip' && showReturnOptions && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Return Journey
-                  {returnOffers.length > 0 && (
-                    <span className="text-base font-normal text-gray-600 ml-2">
-                      ({returnOffers.length} option{returnOffers.length !== 1 ? 's' : ''})
-                    </span>
-                  )}
-                </h2>
-
-                {returnOffers.length > 0 ? (
-                  <div className="space-y-4">
-                    {returnOffers.map((offer) => (
-                      <div key={offer.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        {/* Show the return trip (second trip) */}
-                        {offer.trips.slice(1, 2).map((trip, tripIndex) => (
-                          <div key={tripIndex}>
-                            {/* Trip header */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-4">
-                                <div className="text-lg font-semibold text-gray-900">
-                                  {formatTime(trip.segments[0].departureAt)} → {formatTime(trip.segments[trip.segments.length - 1].arrivalAt)}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {formatDate(trip.segments[0].departureAt)}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {formatDuration(trip.segments[0].departureAt, trip.segments[trip.segments.length - 1].arrivalAt)}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {getTransferCount(trip) === 0 ? 'Direct' : `${getTransferCount(trip)} transfer${getTransferCount(trip) !== 1 ? 's' : ''}`}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-lg font-bold text-gray-900">
-                                  Total: €{offer.price.amount}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Outbound + Return
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Segments */}
-                            <div className="space-y-2 mb-4">
-                              {trip.segments.map((segment, segmentIndex) => (
-                                <div key={segmentIndex} className="flex items-center space-x-4 pl-4">
-                                  <div className="flex items-center space-x-2">
-                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
-                                    </svg>
-                                    <span className="font-medium text-blue-600">
-                                      {segment.vehicle.name} {segment.vehicle.code}
-                                    </span>
-                                  </div>
-                                  <div className="text-sm text-gray-600">
-                                    {formatTime(segment.departureAt)} - {formatTime(segment.arrivalAt)}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    {formatDuration(segment.departureAt, segment.arrivalAt)}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Book button */}
-                            <div className="flex justify-end">
-                              <button className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium">
-                                Book return journey (€{offer.price.amount})
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p className="text-lg">No return options found</p>
-                    <p className="text-sm mt-2">Try selecting a different outbound journey</p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>

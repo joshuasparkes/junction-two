@@ -96,3 +96,39 @@ export async function updateTrip(id: string, tripData: Partial<CreateTripData>):
 
   return data;
 }
+
+export async function addBookingToTrip(tripId: string, bookingId: string): Promise<Trip> {
+  console.log('🚀 Adding booking to trip:', { tripId, bookingId });
+  
+  // First get the current trip to access existing booking IDs
+  const currentTrip = await getTripById(tripId);
+  if (!currentTrip) {
+    throw new Error(`Trip not found: ${tripId}`);
+  }
+  
+  // Add the new booking ID to the existing array (avoid duplicates)
+  const existingBookingIds = currentTrip.bookings_ids || [];
+  const updatedBookingIds = existingBookingIds.includes(bookingId) 
+    ? existingBookingIds 
+    : [...existingBookingIds, bookingId];
+  
+  console.log('🚀 Updating trip booking IDs:', { 
+    existing: existingBookingIds, 
+    updated: updatedBookingIds 
+  });
+  
+  const { data, error } = await supabase
+    .from('trips')
+    .update({ bookings_ids: updatedBookingIds })
+    .eq('id', tripId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('🚀 Failed to update trip with booking:', error);
+    throw new Error(`Failed to add booking to trip: ${error.message}`);
+  }
+
+  console.log('🚀 Successfully added booking to trip:', data);
+  return data;
+}
