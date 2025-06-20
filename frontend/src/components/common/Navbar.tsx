@@ -1,11 +1,42 @@
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLayout } from "../../contexts/LayoutContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Navbar: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { isMobile, isNavbarExpanded, setIsNavbarExpanded } = useLayout();
+  const { user, signOut, currentOrganization, setCurrentOrganization, loading } = useAuth();
+  const [isOpen, setIsOpen] = useState(false); // For mobile menu overlay
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showOrgMenu, setShowOrgMenu] = useState(false);
+  const [userOrganizations, setUserOrganizations] = useState<any[]>([]);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    if (isMobile) {
+      setIsOpen(false);
+    }
+  }, [location, isMobile]);
+
+  // Keep organizations state stable - only update when user.organizations actually changes
+  useEffect(() => {
+    if (user?.organizations && user.organizations.length > 0) {
+      setUserOrganizations(user.organizations);
+    }
+    // Don't clear userOrganizations when user.organizations becomes empty during refreshUser
+  }, [user?.organizations]);
+
+  const toggleSidebar = () => {
+    if (isMobile) {
+      setIsOpen(!isOpen);
+    } else {
+      setIsNavbarExpanded(!isNavbarExpanded);
+    }
+  };
 
   const menuItems = [
     {
@@ -48,6 +79,25 @@ const Navbar: React.FC = () => {
         </svg>
       ),
       highlight: true,
+    },
+    {
+      path: "/trains",
+      name: "Train Search",
+      icon: (
+        <svg
+          className="w-6 h-6 text-green-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+          />
+        </svg>
+      ),
     },
     {
       path: "/trips",
@@ -128,88 +178,287 @@ const Navbar: React.FC = () => {
   ];
 
   return (
-    <div
-      className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 transition-all duration-300 z-50 ${
-        isExpanded ? "w-64" : "w-16"
-      }`}
-    >
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <img src="/junction-logo2.png" alt="Junction" className="h-8 w-8" />
-            {isExpanded && (
-              <span className="ml-3 text-xl font-bold text-gray-900">
-                Junction
-              </span>
+    <>
+      {/* Mobile menu button */}
+      {isMobile && (
+        <button
+          onClick={toggleSidebar}
+          className="fixed top-4 left-4 z-[60] p-2 rounded-md bg-white shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 lg:hidden"
+        >
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+      )}
+
+      {/* Mobile overlay */}
+      {isMobile && isOpen && (
+        <div
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 transition-all duration-300 z-50 ${
+          isMobile
+            ? `${isOpen ? "translate-x-0" : "-translate-x-full"} w-64`
+            : `${isNavbarExpanded ? "w-64" : "w-16"}`
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center">
+              {(isNavbarExpanded || isMobile) && (
+                <div className="flex items-center">
+                  <img
+                    src="/junction-logo2.png"
+                    alt="Junction"
+                    className="h-8 w-8"
+                  />
+                  <span className="ml-3 text-xl font-bold text-gray-900">
+                    Junction
+                  </span>
+                </div>
+              )}
+            </div>
+            {!isMobile && (
+              <button
+                onClick={toggleSidebar}
+                className="p-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                <svg
+                  className={`h-5 w-5 transition-transform duration-200 ${
+                    isNavbarExpanded ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
             )}
           </div>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          >
-            <svg
-              className={`h-5 w-5 transition-transform duration-200 ${
-                isExpanded ? "rotate-180" : ""
-              }`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-        </div>
 
-        {/* Navigation Menu */}
-        <nav className="flex-1 px-2 py-4 space-y-2">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center px-3 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                isActive(item.path)
-                  ? "bg-blue-50 text-blue-700 border-r-2 border-blue-500"
-                  : item.highlight
-                  ? "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-              } ${!isExpanded ? "justify-center" : ""}`}
-              title={!isExpanded ? item.name : ""}
-            >
-              <div className="flex-shrink-0">{item.icon}</div>
-              {isExpanded && <span className="ml-3 truncate">{item.name}</span>}
-            </Link>
-          ))}
-        </nav>
+          {/* Organization Switcher */}
+          {user && userOrganizations.length > 0 && (
+            <div className="px-4 py-3 border-b border-gray-200">
+              {(isNavbarExpanded || isMobile) && (
+                <p className="text-xs font-medium text-gray-500 mb-2">Organization</p>
+              )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowOrgMenu(!showOrgMenu)}
+                  className={`w-full flex items-center ${
+                    !isNavbarExpanded && !isMobile ? 'justify-center' : 'justify-between'
+                  } px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200`}
+                >
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">
+                        {currentOrganization?.name?.charAt(0) || 'O'}
+                      </span>
+                    </div>
+                    {(isNavbarExpanded || isMobile) && (
+                      <span className="ml-2 truncate font-medium text-gray-900">
+                        {currentOrganization?.name || 'Select Organization'}
+                      </span>
+                    )}
+                  </div>
+                  {(isNavbarExpanded || isMobile) && (
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
 
-        {/* Bottom Section */}
-        <div className="border-t border-gray-200 p-4">
-          {/* User Profile */}
-          <div
-            className={`flex items-center px-3 py-2 ${
-              !isExpanded ? "justify-center" : ""
-            }`}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt="Profile"
-              className="h-8 w-8 rounded-full"
-            />
-            {isExpanded && (
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">Jane Doe</p>
-                <p className="text-xs text-gray-500">jane@company.com</p>
+                {/* Organization Dropdown */}
+                {showOrgMenu && (isNavbarExpanded || isMobile) && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    {userOrganizations.map((org) => (
+                      <button
+                        key={org.id}
+                        onClick={() => {
+                          setCurrentOrganization(org);
+                          setShowOrgMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between ${
+                          currentOrganization?.id === org.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs font-bold">
+                              {org.name.charAt(0)}
+                            </span>
+                          </div>
+                          <div className="ml-2">
+                            <div className="font-medium">{org.name}</div>
+                            <div className="text-xs text-gray-500 capitalize">{org.role}</div>
+                          </div>
+                        </div>
+                        {currentOrganization?.id === org.id && (
+                          <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Menu */}
+          <nav className="flex-1 px-2 py-4 space-y-2">
+            {menuItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center px-3 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  isActive(item.path)
+                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-500"
+                    : item.highlight
+                    ? "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                } ${!isNavbarExpanded && !isMobile ? "justify-center" : ""}`}
+                title={!isNavbarExpanded && !isMobile ? item.name : ""}
+              >
+                <div className="flex-shrink-0">{item.icon}</div>
+                {(isNavbarExpanded || isMobile) && (
+                  <span className="ml-3 truncate">{item.name}</span>
+                )}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Bottom Section */}
+          <div className="border-t border-gray-200 p-4">
+            {/* User Profile */}
+            {user ? (
+              <div className="relative">
+                <div
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-gray-50 rounded-lg ${
+                    !isNavbarExpanded && !isMobile ? "justify-center" : ""
+                  }`}
+                >
+                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {user.profile?.first_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  {(isNavbarExpanded || isMobile) && (
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.profile?.first_name && user.profile?.last_name 
+                          ? `${user.profile.first_name} ${user.profile.last_name}`
+                          : user.email
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      {userOrganizations.length > 0 && (
+                        <p className="text-xs text-blue-600">
+                          {userOrganizations.find(org => org.is_primary)?.name || userOrganizations[0].name}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {(isNavbarExpanded || isMobile) && (
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* User Menu Dropdown */}
+                {showUserMenu && (isNavbarExpanded || isMobile) && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <div className="px-4 py-2 border-b border-gray-200">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.profile?.first_name && user.profile?.last_name 
+                          ? `${user.profile.first_name} ${user.profile.last_name}`
+                          : user.email
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                    
+                    {userOrganizations.length > 0 && (
+                      <div className="px-4 py-2 border-b border-gray-200">
+                        <p className="text-xs font-medium text-gray-700 mb-1">Organizations:</p>
+                        {userOrganizations.map((org) => (
+                          <div key={org.id} className="text-xs text-gray-600 flex justify-between">
+                            <span>{org.name}</span>
+                            <span className="text-blue-600 capitalize">{org.role}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <Link
+                      to="/profile"
+                      onClick={() => setShowUserMenu(false)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Profile Settings
+                    </Link>
+                    
+                    <button
+                      onClick={async () => {
+                        try {
+                          setShowUserMenu(false);
+                          await signOut();
+                          navigate('/');
+                        } catch (error) {
+                          console.error('Error during sign out:', error);
+                          // Still navigate to home even if sign out fails
+                          navigate('/');
+                        }
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={`flex items-center ${!isNavbarExpanded && !isMobile ? "justify-center" : ""}`}>
+                <Link
+                  to="/login"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  {(isNavbarExpanded || isMobile) && "Sign in"}
+                </Link>
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

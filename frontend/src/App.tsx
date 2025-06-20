@@ -1,36 +1,105 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { LayoutProvider } from "./contexts/LayoutContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import { Provider } from "react-redux";
 import { store } from "./redux/store";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import BookTravelPage from "./pages/BookTravelPage";
 import PlanTripPage from "./pages/PlanTripPage";
-import MyTripsPage from "./pages/MyTripsPage";
+import TripsPage from "./pages/TripsPage";
+import TripDetailPage from "./pages/TripDetailPage";
 import TravelManagerPage from "./pages/TravelManagerPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import HelpSupportPage from "./pages/HelpSupportPage";
+import UserProfilePage from "./pages/UserProfilePage";
+import TrainSearchPage from "./pages/TrainSearchPage";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const App: React.FC = () => {
   return (
     <Provider store={store}>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/book" element={<BookTravelPage />} />
-            <Route path="/plan-trip" element={<PlanTripPage />} />
-            <Route path="/trips" element={<MyTripsPage />} />
-            <Route path="/travel-manager" element={<TravelManagerPage />} />
-            <Route path="/approvals" element={<ApprovalsPage />} />
-            <Route path="/help" element={<HelpSupportPage />} />
-          </Routes>
-        </div>
-      </Router>
+      <AuthProvider>
+        <LayoutProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50">
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                
+                {/* Protected routes - require authentication */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute requireOrganization>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/book" element={
+                  <ProtectedRoute>
+                    <BookTravelPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/trains" element={
+                  <ProtectedRoute>
+                    <TrainSearchPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/plan-trip" element={
+                  <ProtectedRoute>
+                    <PlanTripPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/trips" element={
+                  <ProtectedRoute>
+                    <TripsPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/trips/:id" element={
+                  <ProtectedRoute>
+                    <TripDetailPage />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Manager and booker only routes */}
+                <Route path="/travel-manager" element={
+                  <ProtectedRoute requiredRoles={['manager', 'booker']}>
+                    <TravelManagerPage />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Manager only routes */}
+                <Route path="/approvals" element={
+                  <ProtectedRoute requiredRoles={['manager']}>
+                    <ApprovalsPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/help" element={
+                  <ProtectedRoute>
+                    <HelpSupportPage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <UserProfilePage />
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </div>
+          </Router>
+        </LayoutProvider>
+      </AuthProvider>
     </Provider>
   );
 };
