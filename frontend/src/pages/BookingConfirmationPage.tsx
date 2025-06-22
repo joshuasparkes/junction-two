@@ -16,7 +16,7 @@ const BookingConfirmationPage: React.FC = () => {
   
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm p-8 text-center">
           {/* Success Icon */}
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">

@@ -18,7 +18,7 @@ export const useLayout = () => {
 
 export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMobile, setIsMobile] = useState(false);
-  const [isNavbarExpanded, setIsNavbarExpanded] = useState(true);
+  const [isNavbarExpanded, setIsNavbarExpanded] = useState(false); // Default to collapsed
 
   useEffect(() => {
     const checkDevice = () => {
@@ -26,9 +26,8 @@ export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsMobile(mobile);
       if (mobile) {
         setIsNavbarExpanded(false);
-      } else {
-        setIsNavbarExpanded(true);
       }
+      // Remove the else clause to keep it collapsed by default on desktop too
     };
 
     checkDevice();

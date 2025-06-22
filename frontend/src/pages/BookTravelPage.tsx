@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "../components/common/Layout";
+import OrgSelector from "../components/common/OrgSelector";
 import PlaceSearchInput from "../components/travel/PlaceSearchInput";
 import { Place } from "../services/placesService";
 import { searchTrains, getReturnOffers, TrainOffer, formatTime, formatDate, formatDuration, getTransferCount } from "../services/trainService";
@@ -8,7 +9,7 @@ import { searchTrains, getReturnOffers, TrainOffer, formatTime, formatDate, form
 const BookTravelPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("flights");
+  const [activeTab, setActiveTab] = useState("rail");
   const [tripType, setTripType] = useState("roundtrip");
   const [classType, setClassType] = useState("economy");
   
@@ -137,85 +138,90 @@ const BookTravelPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-8">
-          Hi Jane, Search for {activeTab === 'flights' ? 'Flights' : 'Rail Travel'}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Org Selector */}
+        <div className="mb-6">
+          <OrgSelector />
+        </div>
+        
+        <h1 className="title-text font-normal text-chatgpt-text-primary mb-8">
+          Search for {activeTab === 'flights' ? 'Flights' : 'Rail Travel'}
         </h1>
 
         {/* Tab Navigation */}
         <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('flights')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'flights'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Flights
-              </button>
-              <button
-                onClick={() => setActiveTab('rail')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'rail'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
-                </svg>
-                Rail
-              </button>
-            </nav>
+          <div className="inline-flex p-1 bg-gray-200 rounded-full">
+            <button
+              onClick={() => setActiveTab('flights')}
+              className={`px-4 py-2 rounded-full font-normal content-text transition-all duration-200 relative flex items-center ${
+                activeTab === 'flights'
+                  ? 'bg-white text-gray-900 shadow-sm z-10'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              Flights
+            </button>
+            <button
+              onClick={() => setActiveTab('rail')}
+              className={`px-4 py-2 rounded-full font-normal content-text transition-all duration-200 relative flex items-center ${
+                activeTab === 'rail'
+                  ? 'bg-white text-gray-900 shadow-sm z-10'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
+              </svg>
+              Rail
+            </button>
           </div>
         </div>
 
         {/* Search Forms */}
         {activeTab === 'flights' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex space-x-4 mb-6">
-            <button
-              onClick={() => setTripType("roundtrip")}
-              className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                tripType === "roundtrip"
-                  ? "bg-blue-100 text-blue-700 border border-blue-300"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Roundtrip
-            </button>
-            <button
-              onClick={() => setTripType("oneway")}
-              className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                tripType === "oneway"
-                  ? "bg-blue-100 text-blue-700 border border-blue-300"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              One way
-            </button>
-            <button
-              onClick={() => setTripType("multicity")}
-              className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                tripType === "multicity"
-                  ? "bg-blue-100 text-blue-700 border border-blue-300"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Multi-city
-            </button>
+          <div className="bg-white rounded-lg shadow-sm py-6">
+            <div className="mb-6">
+              <div className="inline-flex p-1 bg-gray-200 rounded-full">
+                <button
+                  onClick={() => setTripType("roundtrip")}
+                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                    tripType === "roundtrip"
+                      ? "bg-white text-gray-900 shadow-sm z-10"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Roundtrip
+                </button>
+                <button
+                  onClick={() => setTripType("oneway")}
+                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                    tripType === "oneway"
+                      ? "bg-white text-gray-900 shadow-sm z-10"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  One way
+                </button>
+                <button
+                  onClick={() => setTripType("multicity")}
+                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                    tripType === "multicity"
+                      ? "bg-white text-gray-900 shadow-sm z-10"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Multi-city
+                </button>
+              </div>
 
             <div className="ml-auto flex items-center space-x-4">
               <select
                 value={classType}
                 onChange={(e) => setClassType(e.target.value)}
-                className="px-3 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="chatgpt-select"
               >
                 <option value="economy">Economy</option>
                 <option value="premium">Premium Economy</option>
@@ -251,7 +257,7 @@ const BookTravelPage: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter departure city"
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="chatgpt-input w-full"
               />
             </div>
 
@@ -275,7 +281,7 @@ const BookTravelPage: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter destination city"
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="chatgpt-input w-full"
               />
               <button className="absolute right-3 top-8 p-1">
                 <svg
@@ -313,7 +319,7 @@ const BookTravelPage: React.FC = () => {
               </label>
               <input
                 type="date"
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="chatgpt-input w-full"
               />
             </div>
 
@@ -337,7 +343,7 @@ const BookTravelPage: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="chatgpt-input w-full"
                 />
               </div>
             )}
@@ -361,7 +367,7 @@ const BookTravelPage: React.FC = () => {
                 </svg>
                 1 Adult
               </label>
-              <select className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select className="chatgpt-select">
                 <option>1 Adult</option>
                 <option>2 Adults</option>
                 <option>3 Adults</option>
@@ -369,7 +375,7 @@ const BookTravelPage: React.FC = () => {
               </select>
             </div>
 
-              <button className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+              <button className="chatgpt-primary-button">
                 Search flights
               </button>
             </div>
@@ -378,34 +384,36 @@ const BookTravelPage: React.FC = () => {
 
         {/* Rail Search Form */}
         {activeTab === 'rail' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex space-x-4 mb-6">
-              <button
-                onClick={() => setTripType("roundtrip")}
-                className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                  tripType === "roundtrip"
-                    ? "bg-blue-100 text-blue-700 border border-blue-300"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Return
-              </button>
-              <button
-                onClick={() => setTripType("oneway")}
-                className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                  tripType === "oneway"
-                    ? "bg-blue-100 text-blue-700 border border-blue-300"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                One way
-              </button>
+          <div className="bg-white rounded-lg shadow-sm py-6">
+            <div className="mb-6">
+              <div className="inline-flex p-1 bg-gray-200 rounded-full">
+                <button
+                  onClick={() => setTripType("roundtrip")}
+                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                    tripType === "roundtrip"
+                      ? "bg-white text-gray-900 shadow-sm z-10"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Return
+                </button>
+                <button
+                  onClick={() => setTripType("oneway")}
+                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                    tripType === "oneway"
+                      ? "bg-white text-gray-900 shadow-sm z-10"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  One way
+                </button>
+              </div>
 
               <div className="ml-auto flex items-center space-x-4">
                 <select
                   value={classType}
                   onChange={(e) => setClassType(e.target.value)}
-                  className="px-3 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="chatgpt-select"
                 >
                   <option value="standard">Standard</option>
                   <option value="first">First Class</option>
@@ -419,8 +427,8 @@ const BookTravelPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="relative">
+            <div className="flex items-end gap-4 mb-6">
+              <div className="flex-1">
                 <PlaceSearchInput
                   label="Departure station"
                   placeholder="Enter departure station"
@@ -431,7 +439,24 @@ const BookTravelPage: React.FC = () => {
                 />
               </div>
 
-              <div className="relative">
+              {/* Switch Button */}
+              <div className="pb-3">
+                <button 
+                  className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    const temp = departureStation;
+                    setDepartureStation(arrivalStation);
+                    setArrivalStation(temp);
+                  }}
+                  title="Swap stations"
+                >
+                  <svg className="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex-1">
                 <PlaceSearchInput
                   label="Arrival station"
                   placeholder="Enter destination station"
@@ -440,20 +465,10 @@ const BookTravelPage: React.FC = () => {
                   searchType="railway-station"
                   required
                 />
-                <button 
-                  className="absolute right-3 top-8 p-1 z-10"
-                  onClick={() => {
-                    const temp = departureStation;
-                    setDepartureStation(arrivalStation);
-                    setArrivalStation(temp);
-                  }}
-                  title="Swap stations"
-                >
-                  <svg className="w-4 h-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </button>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -467,7 +482,7 @@ const BookTravelPage: React.FC = () => {
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="chatgpt-input w-full"
                 />
               </div>
 
@@ -484,7 +499,7 @@ const BookTravelPage: React.FC = () => {
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
                     min={departureDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="chatgpt-input w-full"
                   />
                 </div>
               )}
@@ -509,7 +524,7 @@ const BookTravelPage: React.FC = () => {
                   <select 
                     value={passengers}
                     onChange={(e) => setPassengers(parseInt(e.target.value))}
-                    className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="chatgpt-select"
                   >
                     <option value={1}>1 Adult</option>
                     <option value={2}>2 Adults</option>
@@ -523,7 +538,7 @@ const BookTravelPage: React.FC = () => {
                 <button 
                   type="submit"
                   disabled={isSearching}
-                  className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                  className="chatgpt-primary-button"
                 >
                   {isSearching ? (
                     <div className="flex items-center">

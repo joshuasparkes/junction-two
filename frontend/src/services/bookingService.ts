@@ -26,11 +26,11 @@ export interface BookingRequest {
 }
 
 export interface BookingResponse {
-  id: string;
-  status: string;
-  createdAt: string;
+  id?: string;
+  status?: string;
+  createdAt?: string;
   expiresAt?: string;
-  price: {
+  price?: {
     currency: string;
     amount: string;
   };
@@ -42,9 +42,27 @@ export interface BookingResponse {
   fareRules?: any[];
   trips?: any[];
   fullJunctionResponse?: any;
+  // New nested structure from Junction API
+  booking?: {
+    id: string;
+    status: string;
+    createdAt?: string;
+    expiresAt?: string;
+    price: {
+      currency: string;
+      amount: string;
+    };
+    confirmationNumber?: string;
+    passengers: any[];
+    priceBreakdown: any[];
+    ticketInformation: any[];
+    fareRules: any[];
+    trips: any[];
+    fulfillmentInformation?: any[];
+  };
 }
 
-export async function createBooking(bookingRequest: BookingRequest): Promise<BookingResponse> {
+export async function createBooking(bookingRequest: BookingRequest): Promise<BookingResponse & { id: string }> {
   console.log('🎫 Creating booking via backend proxy:', bookingRequest);
   
   try {
@@ -84,26 +102,27 @@ export async function createBooking(bookingRequest: BookingRequest): Promise<Boo
       const { data: { user } } = await supabase.auth.getUser();
       console.log('🎫 Current user for Supabase booking:', user);
       
-      if (user && data.id) {
+      const bookingId = data.booking?.id || data.id;
+      if (user && bookingId) {
         console.log('🎫 Attempting to save booking to Supabase:', {
-          junction_booking_id: data.id,
+          junction_booking_id: bookingId,
           trip_id: bookingRequest.tripId,
           user_id: user.id,
-          total_amount: data.price?.amount || '0',
-          currency: data.price?.currency || 'EUR',
+          total_amount: data.booking?.price?.amount || data.price?.amount || '0',
+          currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
         });
         
         const supabaseBooking = await createBookingInSupabase({
-          junction_booking_id: data.id,
+          junction_booking_id: bookingId,
           trip_id: bookingRequest.tripId,
           user_id: user.id,
-          total_amount: data.price?.amount || '0',
-          currency: data.price?.currency || 'EUR',
+          total_amount: data.booking?.price?.amount || data.price?.amount || '0',
+          currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
           junction_response: data.fullJunctionResponse || data,
-          passengers_data: data.passengers || bookingRequest.passengers,
-          trips_data: data.trips || [],
-          price_breakdown: data.priceBreakdown || [],
-          fulfillment_info: data.ticketInformation || [],
+          passengers_data: data.booking?.passengers || data.passengers || bookingRequest.passengers,
+          trips_data: data.booking?.trips || data.trips || [],
+          price_breakdown: data.booking?.priceBreakdown || data.priceBreakdown || [],
+          fulfillment_info: data.fulfillmentInformation || data.ticketInformation || [],
         });
         console.log('🎫 Booking successfully saved to Supabase:', supabaseBooking);
       } else {
@@ -114,7 +133,27 @@ export async function createBooking(bookingRequest: BookingRequest): Promise<Boo
       // Don't throw error - backend booking was successful
     }
     
-    return data;
+    // Return the booking data, handling both nested and flat response structures
+    const bookingId = data.booking?.id || data.id;
+    if (!bookingId) {
+      throw new Error('No booking ID found in response');
+    }
+    
+    return {
+      id: bookingId,
+      status: data.booking?.status || data.status || 'pending',
+      createdAt: data.booking?.createdAt || data.createdAt || new Date().toISOString(),
+      expiresAt: data.booking?.expiresAt || data.expiresAt,
+      price: data.booking?.price || data.price,
+      confirmationNumber: data.booking?.confirmationNumber || data.confirmationNumber,
+      fulfillmentInformation: data.fulfillmentInformation || data.booking?.fulfillmentInformation,
+      passengers: data.booking?.passengers || data.passengers,
+      priceBreakdown: data.booking?.priceBreakdown || data.priceBreakdown,
+      ticketInformation: data.booking?.ticketInformation || data.ticketInformation,
+      fareRules: data.booking?.fareRules || data.fareRules,
+      trips: data.booking?.trips || data.trips,
+      fullJunctionResponse: data
+    };
   } catch (error) {
     console.error('🎫 Error creating booking:', error);
     throw new Error(`Failed to create booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -170,7 +209,7 @@ export async function confirmBooking(bookingId: string, confirmationRequest: Con
       if (supabaseBooking) {
         // Update booking confirmation details
         await updateBookingConfirmation(supabaseBooking.id!, {
-          status: 'confirmed',
+          status: 'paid',
           delivery_option: confirmationRequest.fulfillmentChoices[0]?.deliveryOption,
           fulfillment_info: data.ticketInformation || data.fulfillmentInformation || [],
           confirmation_number: data.booking?.confirmationNumber,

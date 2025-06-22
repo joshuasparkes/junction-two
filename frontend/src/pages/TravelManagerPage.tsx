@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../components/common/Layout";
+import OrgSelector from "../components/common/OrgSelector";
 import { useAuth } from "../contexts/AuthContext";
 import { 
   getOrganizationMembers, 
@@ -22,8 +23,8 @@ const TravelManagerPage: React.FC = () => {
     logo: "/junction-logo2.png",
     hero: "https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
     name: currentOrganization?.name || "Company Name",
-    billingAddress: "6 Wellington Place, Leeds, ENG, United Kingdom, LS1 4AP",
-    phoneNumber: "N/A",
+    billingAddress: currentOrganization?.address || "No address set",
+    phoneNumber: currentOrganization?.phone || "No phone number set",
   });
   
   // Edit mode states
@@ -97,12 +98,14 @@ const TravelManagerPage: React.FC = () => {
     { id: "email", label: "Email" },
   ];
 
-  // Update company name when organization changes
+  // Update company data when organization changes
   useEffect(() => {
     if (currentOrganization) {
       setCompanyData(prev => ({
         ...prev,
-        name: currentOrganization.name
+        name: currentOrganization.name,
+        billingAddress: currentOrganization?.address || "No address set",
+        phoneNumber: currentOrganization?.phone || "No phone number set",
       }));
     }
   }, [currentOrganization]);
@@ -236,53 +239,86 @@ const TravelManagerPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Main Navigation */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
-          <div className="w-full">
-            <nav className="flex space-x-1 overflow-x-auto px-4">
-              {mainTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveMainTab(tab.id)}
-                  className={`px-4 py-4 text-sm font-medium whitespace-nowrap rounded-t-lg transition-all duration-200 ${
-                    activeMainTab === tab.id
-                      ? "text-blue-600 bg-white border-b-4 border-blue-600 shadow-sm transform translate-y-1"
-                      : "text-blue-100 hover:text-white hover:bg-blue-500 hover:bg-opacity-20"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Org Selector */}
+        <div className="mb-6">
+          <OrgSelector />
         </div>
-
-        {/* Sub Navigation - Only show for Company tab */}
-        {activeMainTab === "company" && (
-          <div className="bg-white border-b border-gray-200 shadow-sm">
-            <div className="w-full">
-              <nav className="flex space-x-8 px-6 overflow-x-auto">
-                {subTabs.map((tab) => (
+        
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="title-text font-normal text-chatgpt-text-primary mb-2">
+            Travel Manager
+          </h1>
+          <p className="content-text text-chatgpt-text-secondary">
+            Manage your organization's travel settings and policies
+          </p>
+        </div>
+        
+        {/* Two Column Layout */}
+        <div className="flex gap-6">
+          {/* Left Sidebar Navigation */}
+          <div className="w-64 flex-shrink-0">
+            <div className="bg-white border border-gray-200 rounded-lg p-3">
+              <div className="space-y-0">
+                {/* Company Section with Sub-items */}
+                <div>
                   <button
-                    key={tab.id}
-                    onClick={() => setActiveSubTab(tab.id)}
-                    className={`px-1 py-4 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap ${
-                      activeSubTab === tab.id
-                        ? "text-blue-600 border-blue-600"
-                        : "text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300"
+                    onClick={() => setActiveMainTab("company")}
+                    className={`w-full p-3 rounded-md hover:bg-gray-50 transition-colors duration-200 text-left ${
+                      activeMainTab === "company" ? "bg-gray-100" : ""
                     }`}
                   >
-                    {tab.label}
+                    <span className="content-text font-normal text-chatgpt-text-primary">
+                      Company
+                    </span>
+                  </button>
+                  {/* Company Sub-items */}
+                  {activeMainTab === "company" && (
+                    <div className="ml-4 mt-1 space-y-0">
+                      {subTabs.map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveSubTab(tab.id)}
+                          className={`w-full p-2 rounded-md hover:bg-gray-50 transition-colors duration-200 text-left ${
+                            activeSubTab === tab.id ? "bg-gray-100" : ""
+                          }`}
+                        >
+                          <span className="sidebar-text text-chatgpt-text-secondary">
+                            {tab.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Other Main Tabs */}
+                {mainTabs.filter(tab => tab.id !== "company").map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveMainTab(tab.id);
+                      // Reset sub tab when changing main tab
+                      if (tab.id !== "company") {
+                        setActiveSubTab("profile");
+                      }
+                    }}
+                    className={`w-full p-3 rounded-md hover:bg-gray-50 transition-colors duration-200 text-left ${
+                      activeMainTab === tab.id ? "bg-gray-100" : ""
+                    }`}
+                  >
+                    <span className="content-text font-normal text-chatgpt-text-primary">
+                      {tab.label}
+                    </span>
                   </button>
                 ))}
-              </nav>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Content */}
-        <div className="w-full px-6 py-8">
+          
+          {/* Main Content Area */}
+          <div className="flex-1">
           {/* Company Profile Tab */}
           {activeMainTab === "company" && activeSubTab === "profile" && (
             <div className="space-y-8">
@@ -473,16 +509,16 @@ const TravelManagerPage: React.FC = () => {
           {/* People Tab */}
           {activeMainTab === "people" && (
             <div>
-              <div className="mb-8 flex justify-between items-center">
+              <div className="mb-8 flex justify-between items-start">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="title-text font-normal text-chatgpt-text-primary mb-1">
                     People Management
-                  </h1>
-                  <p className="text-gray-600">
+                  </h2>
+                  <p className="content-text text-chatgpt-text-secondary">
                     Manage users and invitations for your organization.
                   </p>
                   {currentOrganization && (
-                    <p className="text-sm text-blue-600 mt-1">
+                    <p className="sidebar-text text-gray-500 mt-1">
                       {currentOrganization.name} • {members.length} member{members.length !== 1 ? 's' : ''}
                       {invitations.length > 0 && ` • ${invitations.length} pending invitation${invitations.length !== 1 ? 's' : ''}`}
                     </p>
@@ -491,7 +527,7 @@ const TravelManagerPage: React.FC = () => {
                 <div className="flex space-x-3">
                   <button
                     onClick={() => setShowInviteUserModal(true)}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-colors"
+                    className="chatgpt-button flex items-center"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -500,7 +536,7 @@ const TravelManagerPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setShowCreateUserModal(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center transition-colors"
+                    className="chatgpt-primary-button flex items-center"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -540,123 +576,106 @@ const TravelManagerPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Members Table */}
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h3 className="text-lg font-medium text-gray-900">Organization Members</h3>
-                    </div>
+                  {/* Members List */}
+                  <div>
+                    <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Organization Members</h3>
                     
                     {members.length === 0 ? (
-                      <div className="p-8 text-center">
+                      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
                         <div className="mx-auto h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No members yet</h3>
-                        <p className="text-gray-600 mb-4">Get started by creating or inviting users to your organization.</p>
+                        <h3 className="content-text font-normal text-gray-900 mb-2">No members yet</h3>
+                        <p className="sidebar-text text-gray-600 mb-4">Get started by creating or inviting users to your organization.</p>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Email</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Primary</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Join Date</th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {members.map((member) => (
-                              <tr key={member.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="flex items-center">
-                                    <div className="flex-shrink-0 h-8 w-8">
-                                      <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                                        <span className="text-sm font-medium text-white">
-                                          {(member.user_profiles.first_name?.charAt(0) || member.user_profiles.email.charAt(0)).toUpperCase()}
-                                        </span>
-                                      </div>
+                      <div className="bg-white border border-gray-200 rounded-lg p-3">
+                        <div className="space-y-0">
+                          {members.map((member) => (
+                            <div key={member.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                    <span className="sidebar-text font-normal text-white">
+                                      {(member.user_profiles.first_name?.charAt(0) || member.user_profiles.email.charAt(0)).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="content-text font-normal text-chatgpt-text-primary">
+                                      {member.user_profiles.first_name && member.user_profiles.last_name
+                                        ? `${member.user_profiles.first_name} ${member.user_profiles.last_name}`
+                                        : 'No name set'
+                                      }
                                     </div>
-                                    <div className="ml-4">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {member.user_profiles.first_name && member.user_profiles.last_name
-                                          ? `${member.user_profiles.first_name} ${member.user_profiles.last_name}`
-                                          : 'No name set'
-                                        }
-                                      </div>
-                                      <div className="text-sm text-gray-500 md:hidden">{member.user_profiles.email}</div>
+                                    <div className="sidebar-text text-chatgpt-text-secondary">
+                                      {member.user_profiles.email}
                                     </div>
                                   </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
-                                  {member.user_profiles.email}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                                    member.role === 'admin' || member.role === 'owner' ? 'bg-purple-100 text-purple-800' : 
-                                    member.role === 'manager' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-gray-100 text-gray-800'
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal capitalize ${
+                                    member.role === 'admin' || member.role === 'owner' ? 'bg-purple-100 text-purple-700' : 
+                                    member.role === 'manager' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
                                   }`}>
                                     {member.role}
                                   </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
                                   {member.is_primary && (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-green-100 text-green-700">
                                       Primary
                                     </span>
                                   )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                                  {new Date(member.created_at).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                   <button 
                                     onClick={() => handleRemoveUser(member.user_id)}
-                                    className="text-red-600 hover:text-red-900 transition-colors"
+                                    className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200"
                                   >
                                     Remove
                                   </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                </div>
+                              </div>
+                              <div className="mt-2 ml-11">
+                                <p className="sidebar-text text-gray-500">
+                                  Joined {new Date(member.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
 
                   {/* Pending Invitations */}
                   {invitations.length > 0 && (
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                      <div className="px-6 py-4 border-b border-gray-200">
-                        <h3 className="text-lg font-medium text-gray-900">Pending Invitations</h3>
-                      </div>
-                      <div className="divide-y divide-gray-200">
-                        {invitations.map((invitation) => (
-                          <div key={invitation.id} className="px-6 py-4 flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{invitation.email}</p>
-                              <p className="text-sm text-gray-500">
-                                Invited {new Date(invitation.created_at).toLocaleDateString()} • Role: {invitation.role}
-                              </p>
+                    <div>
+                      <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Pending Invitations</h3>
+                      <div className="bg-white border border-gray-200 rounded-lg p-3">
+                        <div className="space-y-0">
+                          {invitations.map((invitation) => (
+                            <div key={invitation.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="content-text font-normal text-chatgpt-text-primary">{invitation.email}</p>
+                                  <p className="sidebar-text text-chatgpt-text-secondary">
+                                    Invited {new Date(invitation.created_at).toLocaleDateString()} • Role: {invitation.role}
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-yellow-100 text-yellow-700">
+                                    Pending
+                                  </span>
+                                  <button className="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Pending
-                              </span>
-                              <button className="text-gray-400 hover:text-gray-600">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -668,18 +687,18 @@ const TravelManagerPage: React.FC = () => {
           {/* Payment Tab */}
           {activeMainTab === "payment" && (
             <div>
-              <div className="mb-8 flex justify-between items-center">
+              <div className="mb-8 flex justify-between items-start">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="title-text font-normal text-chatgpt-text-primary mb-1">
                     Payment Methods
-                  </h1>
-                  <p className="text-gray-600">
+                  </h2>
+                  <p className="content-text text-chatgpt-text-secondary">
                     Manage your organization's payment methods.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowAddCardModal(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                  className="chatgpt-primary-button flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -688,35 +707,38 @@ const TravelManagerPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid gap-6">
-                {paymentMethods.map((method) => (
-                  <div key={method.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">{method.type}</span>
+              <div className="bg-white border border-gray-200 rounded-lg p-3">
+                <div className="space-y-0">
+                  {paymentMethods.map((method) => (
+                    <div key={method.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-7 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
+                            <span className="sidebar-text font-normal text-gray-600">{method.type}</span>
+                          </div>
+                          <div>
+                            <p className="content-text font-normal text-chatgpt-text-primary">{method.name}</p>
+                            <p className="sidebar-text text-chatgpt-text-secondary">
+                              •••• •••• •••• {method.lastFour} • Expires {method.expiry}
+                            </p>
+                          </div>
                         </div>
-                        <div className="ml-4">
-                          <p className="text-lg font-medium text-gray-900">{method.name}</p>
-                          <p className="text-sm text-gray-500">•••• •••• •••• {method.lastFour}</p>
-                          <p className="text-sm text-gray-500">Expires {method.expiry}</p>
+                        <div className="flex items-center space-x-3">
+                          {method.isDefault && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-green-100 text-green-700">
+                              Default
+                            </span>
+                          )}
+                          <button className="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                          </button>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        {method.isDefault && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Default
-                          </span>
-                        )}
-                        <button className="text-gray-400 hover:text-gray-600">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -725,112 +747,90 @@ const TravelManagerPage: React.FC = () => {
           {activeMainTab === "policies" && (
             <div>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="title-text font-normal text-chatgpt-text-primary mb-1">
                   Travel Policies
-                </h1>
-                <p className="text-gray-600">
+                </h2>
+                <p className="content-text text-chatgpt-text-secondary">
                   Manage your organization's travel policies and rules.
                 </p>
               </div>
 
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {/* Organization Policies */}
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Organization Policies</h2>
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pre-trip Approval</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Out of Policy Message</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {organizationPolicies.map((policy) => (
-                          <tr key={policy.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{policy.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                  <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Organization Policies</h3>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="space-y-0">
+                      {organizationPolicies.map((policy) => (
+                        <div key={policy.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">{policy.name}</h4>
+                              <p className="sidebar-text text-chatgpt-text-secondary mb-2">{policy.outOfPolicyMessage}</p>
+                              <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-blue-100 text-blue-700 capitalize">
                                 {policy.preTripApproval.replace('_', ' ')}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{policy.outOfPolicyMessage}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                              <button className="text-red-600 hover:text-red-900">Delete</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-4">
+                              <button className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200">Edit</button>
+                              <button className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200">Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Policy Groups */}
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Policy Groups</h2>
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {policyGroups.map((group) => (
-                          <tr key={group.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{group.name}</td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{group.description}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{group.priority}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                              <button className="text-red-600 hover:text-red-900">Delete</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Policy Groups</h3>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="space-y-0">
+                      {policyGroups.map((group) => (
+                        <div key={group.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">{group.name}</h4>
+                              <p className="sidebar-text text-chatgpt-text-secondary mb-2">{group.description}</p>
+                              <span className="sidebar-text text-gray-500">Priority: {group.priority}</span>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-4">
+                              <button className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200">Edit</button>
+                              <button className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200">Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Out of Policy Reasons */}
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Out of Policy Reasons</h2>
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requires Approval</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {outOfPolicyReasons.map((reason) => (
-                          <tr key={reason.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{reason.reason}</td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{reason.description}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                reason.requiresApproval ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                  <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Out of Policy Reasons</h3>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="space-y-0">
+                      {outOfPolicyReasons.map((reason) => (
+                        <div key={reason.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">{reason.reason}</h4>
+                              <p className="sidebar-text text-chatgpt-text-secondary mb-2">{reason.description}</p>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal ${
+                                reason.requiresApproval ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                               }`}>
-                                {reason.requiresApproval ? 'Yes' : 'No'}
+                                {reason.requiresApproval ? 'Requires Approval' : 'No Approval Required'}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                              <button className="text-red-600 hover:text-red-900">Delete</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-4">
+                              <button className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200">Edit</button>
+                              <button className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200">Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -867,6 +867,7 @@ const TravelManagerPage: React.FC = () => {
               <p className="text-gray-600">Email settings coming soon.</p>
             </div>
           )}
+          </div>
         </div>
 
         {/* Create User Modal */}
@@ -883,7 +884,7 @@ const TravelManagerPage: React.FC = () => {
                       required
                       value={createUserForm.firstName}
                       onChange={(e) => setCreateUserForm(prev => ({ ...prev, firstName: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                      className="chatgpt-input w-full mt-1" 
                     />
                   </div>
                   <div>
@@ -893,7 +894,7 @@ const TravelManagerPage: React.FC = () => {
                       required
                       value={createUserForm.lastName}
                       onChange={(e) => setCreateUserForm(prev => ({ ...prev, lastName: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                      className="chatgpt-input w-full mt-1" 
                     />
                   </div>
                   <div>
@@ -903,7 +904,7 @@ const TravelManagerPage: React.FC = () => {
                       required
                       value={createUserForm.email}
                       onChange={(e) => setCreateUserForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                      className="chatgpt-input w-full mt-1" 
                     />
                   </div>
                   <div>
@@ -911,7 +912,7 @@ const TravelManagerPage: React.FC = () => {
                     <select 
                       value={createUserForm.role}
                       onChange={(e) => setCreateUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="chatgpt-select w-full mt-1"
                     >
                       <option value="member">Member</option>
                       <option value="manager">Manager</option>
@@ -935,13 +936,13 @@ const TravelManagerPage: React.FC = () => {
                         setShowCreateUserModal(false);
                         setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'member' });
                       }}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                      className="chatgpt-button"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      className="chatgpt-primary-button"
                     >
                       Create User
                     </button>
@@ -966,7 +967,7 @@ const TravelManagerPage: React.FC = () => {
                       required
                       value={inviteUserForm.email}
                       onChange={(e) => setInviteUserForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                      className="chatgpt-input w-full mt-1" 
                       placeholder="user@example.com" 
                     />
                   </div>
@@ -975,7 +976,7 @@ const TravelManagerPage: React.FC = () => {
                     <select 
                       value={inviteUserForm.role}
                       onChange={(e) => setInviteUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="chatgpt-select w-full mt-1"
                     >
                       <option value="member">Member</option>
                       <option value="manager">Manager</option>
@@ -988,7 +989,7 @@ const TravelManagerPage: React.FC = () => {
                       rows={3}
                       value={inviteUserForm.message}
                       onChange={(e) => setInviteUserForm(prev => ({ ...prev, message: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                      className="chatgpt-input w-full mt-1" 
                       placeholder="Add a personal message to the invitation..."
                     />
                   </div>
@@ -1009,13 +1010,13 @@ const TravelManagerPage: React.FC = () => {
                         setShowInviteUserModal(false);
                         setInviteUserForm({ email: '', role: 'member', message: '' });
                       }}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                      className="chatgpt-button"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                      className="chatgpt-primary-button"
                     >
                       Send Invitation
                     </button>

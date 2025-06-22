@@ -1,11 +1,9 @@
-import { configureStore } from '@reduxjs/toolkit';
-// Import reducers as they are created
-// import authReducer from './slices/authSlice';
+import { configureStore } from "@reduxjs/toolkit";
+import tripReducer from "./slices/tripSlice";
 
 export const store = configureStore({
   reducer: {
-    // Add reducers here as they are created
-    // auth: authReducer,
+    trips: tripReducer,
   },
 });
 

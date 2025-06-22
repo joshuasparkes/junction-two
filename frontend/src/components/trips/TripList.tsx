@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getTrips, deleteTrip } from '../../services/tripService';
 import { Trip } from '../../lib/supabase';
 import Layout from '../common/Layout';
+import OrgSelector from '../common/OrgSelector';
 import { useAuth } from '../../contexts/AuthContext';
 
 const TripList: React.FC = () => {
@@ -53,22 +54,27 @@ const TripList: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Org Selector */}
+        <div className="mb-6">
+          <OrgSelector />
+        </div>
+        
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="title-text font-normal text-chatgpt-text-primary mb-2">
               {currentOrganization ? `${currentOrganization.name} Trips` : 'My Trips'}
             </h1>
             {currentOrganization && (
-              <p className="text-sm text-gray-600">
-                Your role: <span className="capitalize font-medium">{currentOrganization.role}</span>
+              <p className="content-text text-chatgpt-text-secondary">
+                Your role: <span className="capitalize font-normal">{currentOrganization.role}</span>
               </p>
             )}
           </div>
           <Link
             to="/plan-trip"
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="chatgpt-primary-button inline-flex items-center justify-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -99,7 +105,7 @@ const TripList: React.FC = () => {
             <div className="mt-6">
               <Link
                 to="/plan-trip"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                className="chatgpt-primary-button inline-flex items-center justify-center"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -109,55 +115,46 @@ const TripList: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {trips.map((trip) => (
-              <div key={trip.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                <Link to={`/trips/${trip.id}`} className="block p-6 hover:bg-gray-50">
-                  {/* Header with title and status */}
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 truncate pr-2">
-                      {trip.name || 'Untitled Trip'}
-                    </h3>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
-                      Active
-                    </span>
-                  </div>
-
-                  {/* Trip details */}
-                  <div className="space-y-2 mb-6">
-                    <p className="text-sm text-gray-600">
-                      Created on {trip.created_at ? new Date(trip.created_at).toLocaleDateString() : 'Unknown date'}
-                    </p>
-                    <p className="text-sm text-gray-900 font-medium">
+          <div className="bg-white border border-gray-200 rounded-lg p-3">
+            <div className="space-y-0">
+              {trips.map((trip) => (
+                <div key={trip.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                  <Link to={`/trips/${trip.id}`} className="block">
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="content-text font-normal text-chatgpt-text-primary">
+                        {trip.name || 'Untitled Trip'}
+                      </h3>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text bg-green-100 text-green-700 whitespace-nowrap">
+                        Active
+                      </span>
+                    </div>
+                    
+                    <p className="sidebar-text text-chatgpt-text-secondary mb-2">
                       {trip.start_date && trip.end_date 
                         ? `${new Date(trip.start_date).toLocaleDateString()} - ${new Date(trip.end_date).toLocaleDateString()}`
                         : 'Dates not set'
                       }
                     </p>
-                  </div>
-
-                </Link>
-                
-                {/* Action buttons - Outside of the main link to prevent nested clicks */}
-                <div className="px-6 pb-4">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (trip.id) handleDeleteTrip(trip.id);
-                      }}
-                      className="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Delete
-                    </button>
-                  </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <p className="sidebar-text text-gray-500">
+                        Created {trip.created_at ? new Date(trip.created_at).toLocaleDateString() : 'Unknown date'}
+                      </p>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (trip.id) handleDeleteTrip(trip.id);
+                        }}
+                        className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </Link>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>

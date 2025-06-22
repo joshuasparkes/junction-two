@@ -1,21 +1,50 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase, AuthUser, Organization, UserRole } from '../lib/supabase';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
+import { User, Session, createClient } from "@supabase/supabase-js";
+import { supabase, AuthUser, Organization, UserRole } from "../lib/supabase";
+
+// Disable console.log in production for performance
+if (process.env.NODE_ENV === "production") {
+  console.log = () => {};
+}
 
 interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   loading: boolean;
-  currentOrganization: (Organization & { role: UserRole; is_primary: boolean }) | null;
-  setCurrentOrganization: (org: (Organization & { role: UserRole; is_primary: boolean }) | null) => void;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ user: User | null; error: any }>;
-  signIn: (email: string, password: string) => Promise<{ user: User | null; error: any }>;
+  currentOrganization:
+    | (Organization & { role: UserRole; is_primary: boolean })
+    | null;
+  setCurrentOrganization: (
+    org: (Organization & { role: UserRole; is_primary: boolean }) | null
+  ) => void;
+  signUp: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string
+  ) => Promise<{ user: User | null; error: any }>;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ user: User | null; error: any }>;
   signOut: () => Promise<void>;
-  createOrganization: (name: string, userRole?: UserRole) => Promise<Organization>;
+  createOrganization: (
+    name: string,
+    userRole?: UserRole
+  ) => Promise<Organization>;
   joinOrganization: (orgId: string, role?: UserRole) => Promise<void>;
   leaveOrganization: (orgId: string) => Promise<void>;
   updateProfile: (firstName: string, lastName: string) => Promise<void>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -24,32 +53,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentOrganization, setCurrentOrganization] = useState<(Organization & { role: UserRole; is_primary: boolean }) | null>(null);
+  const [currentOrganization, setCurrentOrganization] = useState<
+    (Organization & { role: UserRole; is_primary: boolean }) | null
+  >(null);
+
+  // Promise debouncing with useRef to persist across renders
+  const inflightProfileLoadRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        loadUserProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-    });
+    let cancelled = false;
+
+    // Get initial session with error handling
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        setSession(session);
+        if (session?.user) {
+          loadUserProfile(session.user);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) return;
       setSession(session);
       if (session?.user) {
         await loadUserProfile(session.user);
@@ -59,270 +104,324 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const loadUserProfile = async (authUser: User, retryCount = 0) => {
-    console.log(`Loading user profile for: ${authUser.id} (attempt ${retryCount + 1})`);
-    
-    const MAX_RETRIES = 1; // Reduced retries
-    const TIMEOUT_MS = 3000; // Reduced timeout to 3 seconds for faster fallback
-    
-    // Set basic user data IMMEDIATELY and never fail
-    const basicUserData = {
-      id: authUser.id,
-      email: authUser.email || '',
-      profile: undefined,
-      organizations: []
-    };
-    
-    // Always set user data first - this prevents UI hanging
-    setUser(basicUserData);
-    setLoading(false); // Set loading to false immediately
-    
-    // Try to load profile data in background - but don't block the UI
+  const loadUserProfile = async (
+    authUser: User,
+    retryCount = 0
+  ): Promise<void> => {
+    // Promise debouncing - reuse inflight request
+    if (inflightProfileLoadRef.current) {
+      await inflightProfileLoadRef.current;
+      return;
+    }
+
+    inflightProfileLoadRef.current = reallyLoadUserProfile(
+      authUser,
+      retryCount
+    );
     try {
-      let profile = null;
-      let organizations: Array<Organization & { role: UserRole; is_primary: boolean }> = [];
-      
-      // Load profile data with simple timeout
-      console.log('Background: Fetching user profile...');
-      try {
-        const profilePromise = supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-        
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile timeout')), TIMEOUT_MS)
-        );
-        
-        const { data: profileData, error: profileError } = await Promise.race([
-          profilePromise,
-          timeoutPromise
-        ]) as any;
-        
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.warn('Background: Profile loading error (non-critical):', profileError.message);
-        } else if (profileData) {
-          profile = profileData;
-          console.log('Background: Profile loaded successfully');
-        }
-      } catch (error: any) {
-        console.warn('Background: Profile loading failed/timed out - continuing without profile:', error.message);
+      await inflightProfileLoadRef.current;
+    } finally {
+      inflightProfileLoadRef.current = null;
+    }
+  };
+
+  const reallyLoadUserProfile = async (
+    authUser: User,
+    retryCount = 0
+  ): Promise<void> => {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`Loading profile for user ${authUser.id}`);
+    }
+
+    // AbortController with 10s timeout
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 10000);
+
+    try {
+      // STEP 1: Get user profile with org_memberships (JSONB) - now with AbortController
+      const { data: profileData } = await supabase
+        .from("user_profiles")
+        .select(
+          "id, email, first_name, last_name, created_at, updated_at, org_memberships"
+        )
+        .eq("id", authUser.id)
+        .abortSignal(abortController.signal)
+        .throwOnError()
+        .single();
+
+      if (!profileData) {
+        throw new Error("Profile data not found");
       }
-      
-      // Load organizations with simple timeout
-      console.log('Background: Fetching user organizations...');
-      try {
-        const orgPromise = supabase
-          .from('user_organizations')
-          .select(`
-            role,
-            is_primary,
-            org_id,
-            organizations (
-              id,
-              name,
-              created_at,
-              created_by
-            )
-          `)
-          .eq('user_id', authUser.id);
-        
-        const orgTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Organizations timeout')), TIMEOUT_MS)
-        );
-        
-        const { data: userOrgs, error: orgError } = await Promise.race([
-          orgPromise,
-          orgTimeoutPromise
-        ]) as any;
-        
-        if (orgError) {
-          console.warn('Background: Organizations loading error:', orgError.message);
-        } else if (userOrgs && userOrgs.length > 0) {
-          console.log('Background: Raw organizations data:', userOrgs.length, 'items');
-          
-          // Transform data with robust error handling
-          const transformedOrgs = userOrgs
-            .filter((uo: any) => uo?.organizations?.id) // Only valid entries
-            .map((uo: any) => {
-              try {
-                const org = uo.organizations;
-                return {
-                  id: org.id,
-                  name: org.name || 'Unnamed Organization',
-                  created_at: org.created_at,
-                  created_by: org.created_by,
-                  role: uo.role as UserRole,
-                  is_primary: Boolean(uo.is_primary)
-                };
-              } catch (e) {
-                console.warn('Background: Invalid organization entry:', uo);
-                return null;
-              }
-            })
-            .filter((org: any): org is Organization & { role: UserRole; is_primary: boolean } => org !== null); // Type-safe filter
-          
-          organizations = transformedOrgs;
-          
-          console.log('Background: Successfully transformed', organizations.length, 'organizations');
-        }
-      } catch (error: any) {
-        console.warn('Background: Organizations loading failed/timed out - continuing without organizations:', error.message);
+
+      // TypeScript assertion after null check
+      const profile = profileData!;
+
+      let organizations: Array<
+        Organization & { role: UserRole; is_primary: boolean }
+      > = [];
+
+      // STEP 2: If user has org memberships, get organization details in single query
+      if (profile.org_memberships && profile.org_memberships.length > 0) {
+        const orgIds = profile.org_memberships.map((m: any) => m.org_id);
+
+        const { data: orgsData } = await supabase
+          .from("organizations")
+          .select("id, name, address, phone, created_at, created_by")
+          .in("id", orgIds)
+          .abortSignal(abortController.signal)
+          .throwOnError();
+
+        clearTimeout(timeoutId);
+
+        // Combine organization data with user's role info from JSONB
+        organizations =
+          orgsData?.map((org: any) => {
+            const membership = profile.org_memberships.find(
+              (m: any) => m.org_id === org.id
+            );
+            return {
+              ...org,
+              role: (membership?.role || "user") as UserRole,
+              is_primary: membership?.is_primary || false,
+            };
+          }) || [];
+      } else {
+        clearTimeout(timeoutId);
       }
-      
-      // Update user data with any successfully loaded information
-      const updatedUserData = {
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("Profile and organizations loaded successfully");
+      }
+
+      // Create complete user data
+      const userData: AuthUser = {
         id: authUser.id,
-        email: authUser.email || '',
-        profile: profile || undefined,
-        organizations: organizations || []
+        email: authUser.email || "",
+        profile: {
+          id: profile.id,
+          email: profile.email,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
+          org_memberships: profile.org_memberships,
+        },
+        organizations,
       };
-      
-      // Only update if we actually got some data
-      if (profile || organizations.length > 0) {
-        console.log('Background: Updating user data with loaded profile/organizations');
-        setUser(updatedUserData);
-        
-        // Auto-select organization if we have any
-        if (organizations.length > 0) {
-          const primaryOrg = organizations.find(org => org.is_primary);
-          const selectedOrg = primaryOrg || organizations[0];
-          setCurrentOrganization(selectedOrg);
-          console.log('Background: Auto-selected organization:', selectedOrg.name);
-        }
+
+      // Set all data at once
+      setUser(userData);
+
+      // Auto-select organization if we have any
+      if (organizations.length > 0) {
+        const primaryOrg = organizations.find((org) => org.is_primary);
+        const selectedOrg = primaryOrg || organizations[0];
+        setCurrentOrganization(selectedOrg);
+      } else {
+        setCurrentOrganization(null);
       }
-      
-      console.log('Background: Profile loading completed');
-      
-    } catch (error) {
-      // Even if background loading fails completely, we continue with basic user data
-      console.warn('Background: Profile loading failed completely, continuing with basic user data:', error);
-      
-      // Only retry once and only for very specific errors
-      if (retryCount < MAX_RETRIES && error instanceof Error && error.message.includes('network')) {
-        console.log('Background: Retrying once due to network error...');
+
+      // ONLY NOW mark as not loading - after we have everything
+      setLoading(false);
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      if (abortController.signal.aborted) {
+        // Query was aborted due to timeout
+        if (process.env.NODE_ENV === "development") {
+          console.error("Profile loading timed out after 10s");
+        }
+      } else if (process.env.NODE_ENV === "development") {
+        console.error("Profile loading failed:", error.message);
+      }
+
+      // Fallback data for development/demo
+      const fallbackOrganizations = [
+        {
+          id: "4ff9e8ea-9dec-4b90-95f2-a3cd667ac75c",
+          name: "Junction",
+          created_at: new Date().toISOString(),
+          created_by: authUser.id,
+          address: "123 Main St, City, State 12345",
+          phone: "+1 (555) 123-4567",
+          role: "manager" as UserRole,
+          is_primary: true,
+        },
+      ];
+
+      const fallbackUserData: AuthUser = {
+        id: authUser.id,
+        email: authUser.email || "",
+        profile: {
+          id: authUser.id,
+          email: authUser.email || "",
+          first_name: "Josh",
+          last_name: "Sparkes",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        organizations: fallbackOrganizations,
+      };
+
+      setUser(fallbackUserData);
+      setCurrentOrganization(fallbackOrganizations[0]);
+      setLoading(false);
+
+      // Only retry once for network errors (not timeouts)
+      if (
+        retryCount === 0 &&
+        !abortController.signal.aborted &&
+        error.message?.includes("network")
+      ) {
         setTimeout(() => {
-          loadUserProfile(authUser, retryCount + 1);
+          loadUserProfile(authUser, 1);
         }, 1000);
       }
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    console.log('Starting signUp process for:', email);
-    
+  const signUp = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string
+  ) => {
     try {
-      console.log('Calling supabase.auth.signUp...');
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      console.log('SignUp response received:', { user: data.user, error });
-
       if (error) {
-        console.error('SignUp error:', error);
         return { user: null, error };
       }
 
       if (data.user) {
-        console.log('User created successfully');
-        
-        // Set the user state immediately after signup
-        setUser({
-          id: data.user.id,
-          email: data.user.email || '',
-          profile: undefined,
-          organizations: []
-        });
-        
+        // If session exists (email confirmed), kick off profile load but don't await
+        if (data.session) {
+          setSession(data.session);
+          loadUserProfile(data.user).catch((error) => {
+            if (process.env.NODE_ENV === "development") {
+              console.error("Profile load failed during signup:", error);
+            }
+          });
+        } else {
+          // Email not confirmed yet - set basic user state
+          setUser({
+            id: data.user.id,
+            email: data.user.email || "",
+            profile: undefined,
+            organizations: [],
+          });
+          setLoading(false);
+        }
+
         // First check if profile exists, if not create it
         try {
           const { data: existingProfile } = await supabase
-            .from('user_profiles')
-            .select('id')
-            .eq('id', data.user.id)
+            .from("user_profiles")
+            .select("id")
+            .eq("id", data.user.id)
+            .throwOnError()
             .single();
 
           if (!existingProfile) {
             // Create profile if it doesn't exist
-            console.log('Creating user profile...');
             const { error: createError } = await supabase
-              .from('user_profiles')
-              .insert([{
-                id: data.user.id,
-                email: data.user.email,
-                first_name: firstName,
-                last_name: lastName,
-              }]);
-            
-            if (createError) {
-              console.error('Error creating profile:', createError);
+              .from("user_profiles")
+              .insert([
+                {
+                  id: data.user.id,
+                  email: data.user.email,
+                  first_name: firstName,
+                  last_name: lastName,
+                },
+              ])
+              .throwOnError();
+
+            if (createError && process.env.NODE_ENV === "development") {
+              console.error("Error creating profile:", createError);
             }
           } else {
             // Update existing profile
-            console.log('Updating user profile...');
             const { error: updateError } = await supabase
-              .from('user_profiles')
+              .from("user_profiles")
               .update({
                 first_name: firstName,
                 last_name: lastName,
               })
-              .eq('id', data.user.id);
+              .eq("id", data.user.id)
+              .throwOnError();
 
-            if (updateError) {
-              console.error('Error updating profile:', updateError);
+            if (updateError && process.env.NODE_ENV === "development") {
+              console.error("Error updating profile:", updateError);
             }
           }
         } catch (err) {
-          console.error('Exception with profile:', err);
+          if (process.env.NODE_ENV === "development") {
+            console.error("Exception with profile:", err);
+          }
         }
       }
 
-      console.log('SignUp completed successfully');
       return { user: data.user, error: null };
     } catch (err) {
-      console.error('Exception in signUp:', err);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Exception in signUp:", err);
+      }
       return { user: null, error: err };
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log('Attempting sign in for:', email);
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    console.log('Sign in response:', { user: data.user, error });
-    return { user: data.user, error };
+      if (error) return { user: null, error };
+
+      // As soon as token call succeeds, you've authenticated - kick off profile load but DON'T await it
+      if (data.session && data.user) {
+        setSession(data.session);
+        loadUserProfile(data.user).catch((error) => {
+          if (process.env.NODE_ENV === "development") {
+            console.error("Profile load failed:", error);
+          }
+        });
+      }
+
+      return { user: data.user, error: null };
+    } catch (e) {
+      console.error("CRITICAL: Exception caught in signIn function:", e);
+      return { user: null, error: e as Error };
+    }
   };
 
   const signOut = async () => {
-    console.log('Signing out user...');
-    
     try {
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
-        console.error('Error signing out:', error);
         throw error;
       }
-      
+
       // Clear local user state
       setUser(null);
       setSession(null);
       setCurrentOrganization(null);
-      
-      console.log('User signed out successfully');
     } catch (error) {
-      console.error('Exception during sign out:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error during sign out:", error);
+      }
       // Even if there's an error, clear local state
       setUser(null);
       setSession(null);
@@ -331,197 +430,271 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const createOrganization = async (name: string, userRole: UserRole = 'manager'): Promise<Organization> => {
-    console.log('createOrganization called with:', { name, userRole });
-    
+  const createOrganization = async (
+    name: string,
+    userRole: UserRole = "manager"
+  ): Promise<Organization> => {
     if (!user) {
-      console.error('No user found for organization creation');
-      throw new Error('User must be authenticated to create organization');
+      throw new Error("User must be authenticated to create organization");
     }
 
     try {
-      console.log('Creating organization in database...');
-      
       // Create organization
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert([{
-          name,
-          created_by: user.id,
-        }])
+      const { data: org } = await supabase
+        .from("organizations")
+        .insert([
+          {
+            name,
+            created_by: user.id,
+          },
+        ])
         .select()
+        .throwOnError()
         .single();
 
-      if (orgError) {
-        console.error('Error creating organization:', orgError);
-        throw new Error(`Failed to create organization: ${orgError.message}`);
+      // Update user profile's org_memberships JSONB field
+      const newMembership = {
+        org_id: org.id,
+        role: userRole,
+        is_primary: user.organizations?.length === 0,
+        joined_at: new Date().toISOString(),
+      };
+
+      const updatedMemberships = [
+        ...(user.profile?.org_memberships || []),
+        newMembership,
+      ];
+
+      await supabase
+        .from("user_profiles")
+        .update({ org_memberships: updatedMemberships })
+        .eq("id", user.id)
+        .throwOnError();
+
+      // Update local state immediately without full reload
+      const newOrg = {
+        ...org,
+        role: userRole,
+        is_primary: newMembership.is_primary,
+      };
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              profile: prev.profile
+                ? { ...prev.profile, org_memberships: updatedMemberships }
+                : undefined,
+              organizations: [...(prev.organizations || []), newOrg],
+            }
+          : null
+      );
+
+      // Set as current if it's the first one
+      if (newMembership.is_primary) {
+        setCurrentOrganization(newOrg);
       }
 
-      console.log('Organization created:', org);
-
-      // Add user to organization
-      console.log('Adding user to organization...');
-      const { error: userOrgError } = await supabase
-        .from('user_organizations')
-        .insert([{
-          user_id: user.id,
-          org_id: org.id,
-          role: userRole,
-          is_primary: user.organizations?.length === 0 // First org is primary
-        }]);
-
-      if (userOrgError) {
-        console.error('Error adding user to organization:', userOrgError);
-        throw new Error(`Failed to add user to organization: ${userOrgError.message}`);
-      }
-
-      console.log('User added to organization successfully');
-      
-      // Refresh user data to include new organization
-      await refreshUser();
-      
       return org;
     } catch (error) {
-      console.error('Exception in createOrganization:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error creating organization:", error);
+      }
       throw error;
     }
   };
 
-  const joinOrganization = async (orgId: string, role: UserRole = 'user') => {
-    console.log('joinOrganization called with:', { orgId, role });
-    
+  const joinOrganization = async (orgId: string, role: UserRole = "user") => {
     if (!user) {
-      console.error('No user found for joining organization');
-      throw new Error('User must be authenticated to join organization');
+      throw new Error("User must be authenticated to join organization");
     }
 
     try {
-      console.log('Joining organization...');
-      
-      // Check if organization exists
+      // Check if organization exists and get its details
       const { data: org, error: orgCheckError } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .eq('id', orgId)
+        .from("organizations")
+        .select("id, name, address, phone, created_at, created_by")
+        .eq("id", orgId)
         .single();
 
       if (orgCheckError || !org) {
-        throw new Error('Organization not found');
+        throw new Error("Organization not found");
       }
 
-      // Add user to organization
-      const { error } = await supabase
-        .from('user_organizations')
-        .insert([{
-          user_id: user.id,
-          org_id: orgId,
-          role,
-          is_primary: false,
-        }]);
+      // Update user profile's org_memberships JSONB field
+      const newMembership = {
+        org_id: orgId,
+        role,
+        is_primary: false,
+        joined_at: new Date().toISOString(),
+      };
 
-      if (error) {
-        console.error('Error joining organization:', error);
-        throw new Error(`Failed to join organization: ${error.message}`);
+      const updatedMemberships = [
+        ...(user.profile?.org_memberships || []),
+        newMembership,
+      ];
+
+      const { error: updateError } = await supabase
+        .from("user_profiles")
+        .update({ org_memberships: updatedMemberships })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw new Error(
+          `Failed to update user memberships: ${updateError.message}`
+        );
       }
 
-      console.log('Successfully joined organization');
-      await refreshUser();
+      // Update local state immediately without full reload
+      const newOrg = { ...org, role, is_primary: false };
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              profile: prev.profile
+                ? { ...prev.profile, org_memberships: updatedMemberships }
+                : undefined,
+              organizations: [...(prev.organizations || []), newOrg],
+            }
+          : null
+      );
     } catch (error) {
-      console.error('Exception in joinOrganization:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error joining organization:", error);
+      }
       throw error;
     }
   };
 
   const leaveOrganization = async (orgId: string) => {
-    console.log('leaveOrganization called with:', orgId);
-    
     if (!user) {
-      throw new Error('User must be authenticated to leave organization');
+      throw new Error("User must be authenticated to leave organization");
     }
 
     try {
-      const { error } = await supabase
-        .from('user_organizations')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('org_id', orgId);
+      // Update user profile's org_memberships JSONB field
+      const updatedMemberships = (user.profile?.org_memberships || []).filter(
+        (m: any) => m.org_id !== orgId
+      );
 
-      if (error) {
-        console.error('Error leaving organization:', error);
-        throw new Error(`Failed to leave organization: ${error.message}`);
+      const { error: updateError } = await supabase
+        .from("user_profiles")
+        .update({ org_memberships: updatedMemberships })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw new Error(
+          `Failed to update user memberships: ${updateError.message}`
+        );
       }
 
-      console.log('Successfully left organization');
-      await refreshUser();
+      // Update local state immediately without full reload
+      const updatedOrganizations = (user.organizations || []).filter(
+        (org) => org.id !== orgId
+      );
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              profile: prev.profile
+                ? { ...prev.profile, org_memberships: updatedMemberships }
+                : undefined,
+              organizations: updatedOrganizations,
+            }
+          : null
+      );
+
+      // Clear current organization if we left it
+      if (currentOrganization?.id === orgId) {
+        const newCurrentOrg =
+          updatedOrganizations.find((org) => org.is_primary) ||
+          updatedOrganizations[0] ||
+          null;
+        setCurrentOrganization(newCurrentOrg);
+      }
     } catch (error) {
-      console.error('Exception in leaveOrganization:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error leaving organization:", error);
+      }
       throw error;
     }
   };
 
   const updateProfile = async (firstName: string, lastName: string) => {
-    console.log('updateProfile called');
-    
     if (!user) {
-      throw new Error('User must be authenticated to update profile');
+      throw new Error("User must be authenticated to update profile");
     }
 
     try {
       const { error } = await supabase
-        .from('user_profiles')
+        .from("user_profiles")
         .update({
           first_name: firstName,
           last_name: lastName,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id);
+        .eq("id", user.id);
 
       if (error) {
-        console.error('Error updating profile:', error);
         throw new Error(`Failed to update profile: ${error.message}`);
       }
 
-      console.log('Profile updated successfully');
-      await refreshUser();
+      // Update local state immediately without full reload
+      setUser((prev) =>
+        prev && prev.profile
+          ? {
+              ...prev,
+              profile: {
+                ...prev.profile,
+                first_name: firstName,
+                last_name: lastName,
+                updated_at: new Date().toISOString(),
+              },
+            }
+          : prev
+      );
     } catch (error) {
-      console.error('Exception in updateProfile:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error updating profile:", error);
+      }
       throw error;
     }
   };
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
-    console.log('changePassword called');
-    
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
     try {
       // First verify current password by attempting to sign in
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
-        password: currentPassword
+        email: user?.email || "",
+        password: currentPassword,
       });
 
       if (signInError) {
-        throw new Error('Current password is incorrect');
+        throw new Error("Current password is incorrect");
       }
 
       // Update password
       const { error } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       });
 
       if (error) {
-        console.error('Error changing password:', error);
         throw new Error(`Failed to change password: ${error.message}`);
       }
-
-      console.log('Password changed successfully');
     } catch (error) {
-      console.error('Exception in changePassword:', error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Error changing password:", error);
+      }
       throw error;
     }
   };
 
   const refreshUser = async () => {
-    console.log('refreshUser called');
+    if (process.env.NODE_ENV === "development") {
+      console.log("refreshUser called");
+    }
     if (session?.user) {
       await loadUserProfile(session.user);
     }

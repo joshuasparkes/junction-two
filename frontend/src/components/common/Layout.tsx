@@ -15,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-white">
       <Navbar />
       <main className={`flex-1 transition-all duration-300 ${getMainMargin()}`}>
         <div className={isMobile ? 'pt-16' : ''}> {/* Add top padding on mobile for hamburger button */}

@@ -162,7 +162,7 @@ const PlaceSearchInput: React.FC<PlaceSearchInputProps> = ({
           onBlur={handleBlur}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+          className={`chatgpt-input w-full ${
             disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
           } ${error ? 'border-red-300' : ''}`}
         />

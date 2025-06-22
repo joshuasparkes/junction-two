@@ -1,9 +1,10 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { LayoutProvider } from "./contexts/LayoutContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Provider } from "react-redux";
 import { store } from "./redux/store";
+import { warmSupabaseConnection } from "./lib/supabaseConnection";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -23,6 +24,11 @@ import BookingConfirmationPage from "./pages/BookingConfirmationPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const App: React.FC = () => {
+  // Warm up Supabase connection immediately on app start
+  useEffect(() => {
+    warmSupabaseConnection();
+  }, []);
+
   return (
     <Provider store={store}>
       <AuthProvider>
@@ -38,11 +44,7 @@ const App: React.FC = () => {
                 {/* Protected routes - require authentication */}
                 <Route
                   path="/dashboard"
-                  element={
-                    <ProtectedRoute requireOrganization>
-                      <DashboardPage />
-                    </ProtectedRoute>
-                  }
+                  element={<Navigate to="/book" replace />}
                 />
 
                 <Route

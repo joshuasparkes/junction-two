@@ -38,13 +38,14 @@ export async function createBookingInSupabase(bookingData: CreateBookingData): P
     .from('bookings')
     .insert([insertData])
     .select()
+    .throwOnError()
     .single();
 
   console.log('🔵 Supabase insert response:', { data, error });
 
   if (error) {
     console.error('🔵 Supabase booking error details:', error);
-    throw new Error(`Failed to create booking: ${error.message}`);
+    throw new Error(`Failed to create booking: ${error}`);
   }
 
   console.log('🔵 Successfully created booking in Supabase:', data);
@@ -57,11 +58,12 @@ export async function updateBookingStatus(bookingId: string, status: string): Pr
     .update({ status })
     .eq('id', bookingId)
     .select()
+    .throwOnError()
     .single();
 
   if (error) {
     console.error('Supabase booking update error:', error);
-    throw new Error(`Failed to update booking status: ${error.message}`);
+    throw new Error(`Failed to update booking status: ${error}`);
   }
 
   return data;
@@ -83,11 +85,12 @@ export async function updateBookingConfirmation(
     .update(updates)
     .eq('id', bookingId)
     .select()
+    .throwOnError()
     .single();
 
   if (error) {
     console.error('Supabase booking confirmation update error:', error);
-    throw new Error(`Failed to update booking confirmation: ${error.message}`);
+    throw new Error(`Failed to update booking confirmation: ${error}`);
   }
 
   return data;
@@ -98,6 +101,7 @@ export async function getBookingByJunctionId(junctionBookingId: string): Promise
     .from('bookings')
     .select('*')
     .eq('junction_booking_id', junctionBookingId)
+    .throwOnError()
     .single();
 
   if (error) {
@@ -105,7 +109,7 @@ export async function getBookingByJunctionId(junctionBookingId: string): Promise
       return null; // Booking not found
     }
     console.error('Supabase booking fetch error:', error);
-    throw new Error(`Failed to fetch booking: ${error.message}`);
+    throw new Error(`Failed to fetch booking: ${error}`);
   }
 
   return data;
@@ -116,11 +120,12 @@ export async function getUserBookings(userId: string): Promise<Booking[]> {
     .from('bookings')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .throwOnError();
 
   if (error) {
     console.error('Supabase bookings fetch error:', error);
-    throw new Error(`Failed to fetch bookings: ${error.message}`);
+    throw new Error(`Failed to fetch bookings: ${error}`);
   }
 
   return data || [];
@@ -133,11 +138,12 @@ export async function getTripBookings(tripId: string): Promise<Booking[]> {
     .from('bookings')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .throwOnError();
 
   if (error) {
     console.error('🎫 Supabase trip bookings fetch error:', error);
-    throw new Error(`Failed to fetch trip bookings: ${error.message}`);
+    throw new Error(`Failed to fetch trip bookings: ${error}`);
   }
 
   console.log('🎫 Found bookings for trip:', data);

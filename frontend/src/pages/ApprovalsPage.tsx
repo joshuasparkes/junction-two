@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Layout from "../components/common/Layout";
+import OrgSelector from "../components/common/OrgSelector";
 
 interface ApprovalRequest {
   id: string;
@@ -49,61 +50,72 @@ const ApprovalsPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Org Selector */}
+        <div className="mb-6">
+          <OrgSelector />
+        </div>
         {/* Header */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Approvals</h1>
+        <div className="mb-8">
+          <h1 className="title-text font-normal text-chatgpt-text-primary mb-2">
+            Approvals
+          </h1>
+          <p className="content-text text-chatgpt-text-secondary">
+            Manage approval requests for travel bookings
+          </p>
+        </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8">
+        <div className="mb-8">
+          <div className="inline-flex p-1 bg-gray-200 rounded-full">
             <button
               onClick={() => setActiveTab("received")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
                 activeTab === "received"
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "bg-white text-gray-900 shadow-sm z-10"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Received
             </button>
             <button
               onClick={() => setActiveTab("sent")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
                 activeTab === "sent"
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "bg-white text-gray-900 shadow-sm z-10"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Sent
             </button>
-          </nav>
+          </div>
         </div>
 
         {/* Content */}
         {activeTab === "received" && (
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+            <h2 className="title-text font-normal text-chatgpt-text-primary mb-6">
               Received
             </h2>
 
             {currentApprovals.length > 0 ? (
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                 {/* Table Header */}
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                   <div className="grid grid-cols-5 gap-4">
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Trip Name
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Requested by
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Out of policy groups
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Submission date
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       My policy status
                     </div>
                   </div>
@@ -114,22 +126,22 @@ const ApprovalsPage: React.FC = () => {
                   {currentApprovals.map((approval) => (
                     <div
                       key={approval.id}
-                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
                     >
                       <div className="grid grid-cols-5 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="sidebar-text font-normal text-gray-900">
                           {approval.tripName}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.requestedBy}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.outOfPolicyGroups || ""}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.submissionDate}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.myPolicyStatus || ""}
                         </div>
                       </div>
@@ -152,10 +164,10 @@ const ApprovalsPage: React.FC = () => {
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <h3 className="mt-2 content-text font-normal text-gray-900">
                   No approval requests
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 sidebar-text text-gray-500">
                   You don't have any pending approval requests.
                 </p>
               </div>
@@ -165,26 +177,26 @@ const ApprovalsPage: React.FC = () => {
 
         {activeTab === "sent" && (
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Sent</h2>
+            <h2 className="title-text font-normal text-chatgpt-text-primary mb-6">Sent</h2>
 
             {sentApprovals.length > 0 ? (
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                 {/* Table Header */}
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                   <div className="grid grid-cols-5 gap-4">
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Trip Name
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Requested by
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Out of policy groups
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       Submission date
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="sidebar-text font-normal text-gray-600">
                       My policy status
                     </div>
                   </div>
@@ -195,22 +207,22 @@ const ApprovalsPage: React.FC = () => {
                   {sentApprovals.map((approval) => (
                     <div
                       key={approval.id}
-                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
                     >
                       <div className="grid grid-cols-5 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="sidebar-text font-normal text-gray-900">
                           {approval.tripName}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.requestedBy}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.outOfPolicyGroups || ""}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.submissionDate}
                         </div>
-                        <div className="text-sm text-gray-700">
+                        <div className="sidebar-text text-gray-700">
                           {approval.myPolicyStatus || ""}
                         </div>
                       </div>
@@ -233,10 +245,10 @@ const ApprovalsPage: React.FC = () => {
                     d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                   />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <h3 className="mt-2 content-text font-normal text-gray-900">
                   No sent requests
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 sidebar-text text-gray-500">
                   You haven't sent any approval requests yet.
                 </p>
               </div>

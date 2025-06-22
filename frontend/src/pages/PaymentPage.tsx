@@ -5,7 +5,7 @@ import { TrainOffer } from '../services/trainService';
 import { BookingResponse, confirmBooking, ConfirmationRequest } from '../services/bookingService';
 
 interface LocationState {
-  booking: BookingResponse;
+  booking: BookingResponse & { id: string };
   offer: TrainOffer;
   isReturn: boolean;
 }
@@ -81,7 +81,7 @@ const PaymentPage: React.FC = () => {
   
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
             Payment & Confirmation
