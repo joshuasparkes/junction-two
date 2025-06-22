@@ -4,3 +4,5 @@ export { default as TravelPolicies } from './TravelPolicies';
 export { default as PaymentMethods } from './PaymentMethods';
 export { default as CreateUserModal } from './CreateUserModal';
 export { default as InviteUserModal } from './InviteUserModal';
+export { default as TripManagement } from './TripManagement';
+export { default as ReportingManagement } from './ReportingManagement';

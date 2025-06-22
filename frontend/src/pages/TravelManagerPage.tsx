@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Layout from "../components/common/Layout";
 import OrgSelector from "../components/common/OrgSelector";
 import { useAuth } from "../contexts/AuthContext";
@@ -12,19 +12,25 @@ import {
   CreateUserData,
   InviteUserData 
 } from "../services/peopleService";
+import { getTrips } from "../services/tripService";
+import { getOrganizationBookings, OrganizationBooking } from "../services/bookingService";
+import type { Trip } from "../lib/supabase";
 import {
   CompanyProfile,
   PeopleManagement,
   TravelPolicies,
   PaymentMethods,
   CreateUserModal,
-  InviteUserModal
+  InviteUserModal,
+  TripManagement,
+  ReportingManagement
 } from "../components/travel-manager";
 
 const TravelManagerPage: React.FC = () => {
   const { currentOrganization } = useAuth();
   const [activeMainTab, setActiveMainTab] = useState("company");
   const [activeSubTab, setActiveSubTab] = useState("profile");
+  const [activeReportingTab, setActiveReportingTab] = useState("train");
   
   // Company data state
   const [companyData, setCompanyData] = useState({
@@ -43,7 +49,11 @@ const TravelManagerPage: React.FC = () => {
   // Real data states
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<any[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [bookings, setBookings] = useState<OrganizationBooking[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [loadingBookings, setLoadingBookings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Form states
@@ -51,12 +61,12 @@ const TravelManagerPage: React.FC = () => {
     firstName: '',
     lastName: '',
     email: '',
-    role: 'member'
+    role: 'user'
   });
   
   const [inviteUserForm, setInviteUserForm] = useState({
     email: '',
-    role: 'member',
+    role: 'user',
     message: ''
   });
   
@@ -138,11 +148,56 @@ const TravelManagerPage: React.FC = () => {
       setLoadingMembers(false);
     }
   };
+
+  // Load organization trips
+  const loadTripsData = async () => {
+    if (!currentOrganization) return;
+    
+    setLoadingTrips(true);
+    setError(null);
+    
+    try {
+      console.log('Loading trips for organization:', currentOrganization.id);
+      const tripsData = await getTrips(undefined, currentOrganization.id);
+      
+      setTrips(tripsData);
+      console.log(`Loaded ${tripsData.length} trips`);
+    } catch (err) {
+      console.error('Error loading trips data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load trips data');
+    } finally {
+      setLoadingTrips(false);
+    }
+  };
+
+  // Load organization bookings
+  const loadBookingsData = useCallback(async (startDate?: string, endDate?: string) => {
+    if (!currentOrganization) return;
+    
+    setLoadingBookings(true);
+    setError(null);
+    
+    try {
+      console.log('Loading bookings for organization:', currentOrganization.id);
+      const bookingsData = await getOrganizationBookings(currentOrganization.id, startDate, endDate);
+      
+      setBookings(bookingsData);
+      console.log(`Loaded ${bookingsData.length} bookings`);
+    } catch (err) {
+      console.error('Error loading bookings data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load bookings data');
+    } finally {
+      setLoadingBookings(false);
+    }
+  }, [currentOrganization]);
   
   // Load data when organization changes
   useEffect(() => {
     if (currentOrganization && activeMainTab === 'people') {
       loadMembersData();
+    }
+    if (currentOrganization && activeMainTab === 'trips') {
+      loadTripsData();
     }
   }, [currentOrganization, activeMainTab]);
   
@@ -164,7 +219,7 @@ const TravelManagerPage: React.FC = () => {
       await createUser(userData);
       
       // Reset form and close modal
-      setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'member' });
+      setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'user' });
       setShowCreateUserModal(false);
       
       // Reload members data
@@ -192,7 +247,7 @@ const TravelManagerPage: React.FC = () => {
       await inviteUser(inviteData);
       
       // Reset form and close modal
-      setInviteUserForm({ email: '', role: 'member', message: '' });
+      setInviteUserForm({ email: '', role: 'user', message: '' });
       setShowInviteUserModal(false);
       
       // Reload invitations data
@@ -277,8 +332,47 @@ const TravelManagerPage: React.FC = () => {
                   )}
                 </div>
                 
+                {/* Reporting Section with Sub-items */}
+                <div>
+                  <button
+                    onClick={() => setActiveMainTab("reporting")}
+                    className={`w-full p-3 rounded-md hover:bg-gray-50 transition-colors duration-200 text-left ${
+                      activeMainTab === "reporting" ? "bg-gray-100" : ""
+                    }`}
+                  >
+                    <span className="content-text font-normal text-chatgpt-text-primary">
+                      Reporting
+                    </span>
+                  </button>
+                  {/* Reporting Sub-items */}
+                  {activeMainTab === "reporting" && (
+                    <div className="ml-4 mt-1 space-y-0">
+                      <button
+                        onClick={() => setActiveReportingTab("train")}
+                        className={`w-full p-2 rounded-md hover:bg-gray-50 transition-colors duration-200 text-left ${
+                          activeReportingTab === "train" ? "bg-gray-100" : ""
+                        }`}
+                      >
+                        <span className="sidebar-text text-chatgpt-text-secondary">
+                          Train
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => setActiveReportingTab("air")}
+                        className={`w-full p-2 rounded-md hover:bg-gray-50 transition-colors duration-200 text-left ${
+                          activeReportingTab === "air" ? "bg-gray-100" : ""
+                        }`}
+                      >
+                        <span className="sidebar-text text-chatgpt-text-secondary">
+                          Air
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Other Main Tabs */}
-                {mainTabs.filter(tab => tab.id !== "company").map((tab) => (
+                {mainTabs.filter(tab => tab.id !== "company" && tab.id !== "reporting").map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => {
@@ -348,6 +442,28 @@ const TravelManagerPage: React.FC = () => {
               />
             )}
 
+            {/* Trips Tab */}
+            {activeMainTab === "trips" && (
+              <TripManagement
+                trips={trips}
+                loading={loadingTrips}
+                error={error}
+                currentOrganization={currentOrganization}
+              />
+            )}
+
+            {/* Reporting Tab */}
+            {activeMainTab === "reporting" && (
+              <ReportingManagement
+                bookings={bookings}
+                loading={loadingBookings}
+                error={error}
+                currentOrganization={currentOrganization}
+                activeSubTab={activeReportingTab}
+                onLoadBookings={loadBookingsData}
+              />
+            )}
+
             {/* Other Tabs */}
             {activeSubTab === "permissions" && (
               <div className="text-center py-12">
@@ -388,7 +504,7 @@ const TravelManagerPage: React.FC = () => {
           form={createUserForm}
           onClose={() => {
             setShowCreateUserModal(false);
-            setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'member' });
+            setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'user' });
           }}
           onSubmit={handleCreateUser}
           onChange={(field, value) => setCreateUserForm(prev => ({ ...prev, [field]: value }))}
@@ -400,7 +516,7 @@ const TravelManagerPage: React.FC = () => {
           form={inviteUserForm}
           onClose={() => {
             setShowInviteUserModal(false);
-            setInviteUserForm({ email: '', role: 'member', message: '' });
+            setInviteUserForm({ email: '', role: 'user', message: '' });
           }}
           onSubmit={handleInviteUser}
           onChange={(field, value) => setInviteUserForm(prev => ({ ...prev, [field]: value }))}

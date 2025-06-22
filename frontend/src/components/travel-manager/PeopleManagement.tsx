@@ -220,8 +220,14 @@ const PeopleManagement: React.FC<PeopleManagementProps> = ({
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">
-                            {member.user_profiles.email}
+                            {member.user_profiles.first_name && member.user_profiles.last_name
+                              ? `${member.user_profiles.first_name} ${member.user_profiles.last_name}`
+                              : member.user_profiles.email
+                            }
                           </h4>
+                          <p className="sidebar-text text-chatgpt-text-secondary mb-2">
+                            {member.user_profiles.email}
+                          </p>
                           <div className="flex items-center space-x-3">
                             <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-green-100 text-green-700">
                               Active

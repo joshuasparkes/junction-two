@@ -47,9 +47,10 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                 onChange={(e) => onChange('role', e.target.value)}
                 className="chatgpt-select w-full"
               >
-                <option value="member">Member</option>
+                <option value="user">User</option>
+                <option value="booker">Booker</option>
                 <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
+                <option value="guest">Guest</option>
               </select>
             </div>
             <div>

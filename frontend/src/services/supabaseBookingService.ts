@@ -7,6 +7,7 @@ export interface CreateBookingData {
   org_id?: string;
   total_amount: string;
   currency: string;
+  vertical?: string;
   junction_response?: any;
   passengers_data?: any[];
   trips_data?: any[];
@@ -25,6 +26,7 @@ export async function createBookingInSupabase(bookingData: CreateBookingData): P
     status: 'pending-payment',
     total_amount: bookingData.total_amount,
     currency: bookingData.currency,
+    vertical: bookingData.vertical || 'rail', // Default to 'rail' for train bookings
     junction_response: bookingData.junction_response,
     passengers_data: bookingData.passengers_data,
     trips_data: bookingData.trips_data,

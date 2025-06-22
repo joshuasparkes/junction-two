@@ -118,6 +118,7 @@ export async function createBooking(bookingRequest: BookingRequest): Promise<Boo
           user_id: user.id,
           total_amount: data.booking?.price?.amount || data.price?.amount || '0',
           currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
+          vertical: 'rail', // Set to 'rail' for the create-booking endpoint
           junction_response: data.fullJunctionResponse || data,
           passengers_data: data.booking?.passengers || data.passengers || bookingRequest.passengers,
           trips_data: data.booking?.trips || data.trips || [],
@@ -165,6 +166,50 @@ export interface ConfirmationRequest {
     deliveryOption: 'electronic-ticket' | 'kiosk-collect';
     segmentSequence: number;
   }>;
+}
+
+export interface OrganizationBooking {
+  id: string;
+  created_at: string;
+  total_amount: string;
+  currency: string;
+  org_id: string;
+  vertical?: string;
+  booking_date?: string;
+  status: string;
+  junction_booking_id: string;
+}
+
+export async function getOrganizationBookings(
+  organizationId: string, 
+  startDate?: string, 
+  endDate?: string
+): Promise<OrganizationBooking[]> {
+  console.log('Fetching bookings for organization:', organizationId, { startDate, endDate });
+  
+  let query = supabase
+    .from('bookings')
+    .select('*')
+    .eq('org_id', organizationId)
+    .order('created_at', { ascending: false });
+
+  if (startDate) {
+    query = query.gte('booking_date', startDate);
+  }
+  
+  if (endDate) {
+    query = query.lte('booking_date', endDate);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching bookings:', error);
+    throw new Error(`Failed to fetch bookings: ${error.message}`);
+  }
+
+  console.log(`Found ${data?.length || 0} bookings for organization`);
+  return data || [];
 }
 
 export async function confirmBooking(bookingId: string, confirmationRequest: ConfirmationRequest): Promise<BookingResponse> {

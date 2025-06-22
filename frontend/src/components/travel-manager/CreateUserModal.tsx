@@ -67,9 +67,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 onChange={(e) => onChange('role', e.target.value)}
                 className="chatgpt-select w-full"
               >
-                <option value="member">Member</option>
+                <option value="user">User</option>
+                <option value="booker">Booker</option>
                 <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
+                <option value="guest">Guest</option>
               </select>
             </div>
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">

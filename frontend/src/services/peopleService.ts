@@ -39,17 +39,9 @@ export async function getOrganizationMembers(orgId: string): Promise<Organizatio
   console.log('Fetching organization members for org:', orgId);
   
   const { data, error } = await supabase
-    .from('user_organizations')
-    .select(`
-      id,
-      user_id,
-      org_id,
-      role,
-      is_primary,
-      created_at
-    `)
-    .eq('org_id', orgId)
-    .order('created_at', { ascending: false });
+    .rpc('get_organization_members_with_profiles', { 
+      org_id_param: orgId 
+    });
 
   if (error) {
     console.error('Error fetching organization members:', error);
@@ -63,33 +55,8 @@ export async function getOrganizationMembers(orgId: string): Promise<Organizatio
 
   console.log(`Found ${data.length} member records for organization`);
   
-  // Get all user IDs
-  const userIds = data.map((item: any) => item.user_id);
-  
-  // Fetch user profiles separately
-  const { data: profiles, error: profilesError } = await supabase
-    .from('user_profiles')
-    .select(`
-      id,
-      email,
-      first_name,
-      last_name,
-      created_at,
-      updated_at
-    `)
-    .in('id', userIds);
-
-  if (profilesError) {
-    console.error('Error fetching user profiles:', profilesError);
-    throw new Error(`Failed to fetch user profiles: ${profilesError.message}`);
-  }
-
-  console.log(`Found ${profiles?.length || 0} user profiles`);
-  
-  // Combine the data
+  // Transform the data to match our interface
   const transformedData: OrganizationMember[] = data.map((item: any) => {
-    const userProfile = profiles?.find((profile: any) => profile.id === item.user_id);
-    
     return {
       id: item.id,
       user_id: item.user_id,
@@ -97,13 +64,13 @@ export async function getOrganizationMembers(orgId: string): Promise<Organizatio
       role: item.role,
       is_primary: item.is_primary,
       created_at: item.created_at,
-      user_profiles: userProfile || {
+      user_profiles: {
         id: item.user_id,
-        email: 'Unknown',
-        first_name: null,
-        last_name: null,
-        created_at: null,
-        updated_at: null
+        email: item.email || 'Unknown',
+        first_name: item.first_name || null,
+        last_name: item.last_name || null,
+        created_at: item.created_at,
+        updated_at: item.created_at
       }
     };
   });
@@ -116,14 +83,18 @@ export async function createUser(userData: CreateUserData): Promise<UserProfile>
   console.log('Creating new user:', userData);
   
   try {
-    // First, create the user account via Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Generate a temporary password
+    const tempPassword = `TempPass${Math.random().toString(36).slice(-8)}!`;
+    
+    // Create the user account via regular signup
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
-      password: 'TempPassword123!', // Temporary password - user should change on first login
-      email_confirm: true,
-      user_metadata: {
-        first_name: userData.firstName,
-        last_name: userData.lastName
+      password: tempPassword,
+      options: {
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName
+        }
       }
     });
 
@@ -173,7 +144,17 @@ export async function createUser(userData: CreateUserData): Promise<UserProfile>
     }
 
     console.log('User added to organization successfully');
-    return profileData;
+    
+    // Return profile data with temp password info
+    const result = {
+      ...profileData,
+      tempPassword: tempPassword // Include temp password in response
+    };
+    
+    console.log(`User created with temporary password: ${tempPassword}`);
+    alert(`User created successfully!\nTemporary password: ${tempPassword}\nPlease share this with the user and ask them to change it on first login.`);
+    
+    return result;
 
   } catch (error) {
     console.error('Exception in createUser:', error);
