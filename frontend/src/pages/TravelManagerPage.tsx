@@ -12,6 +12,14 @@ import {
   CreateUserData,
   InviteUserData 
 } from "../services/peopleService";
+import {
+  CompanyProfile,
+  PeopleManagement,
+  TravelPolicies,
+  PaymentMethods,
+  CreateUserModal,
+  InviteUserModal
+} from "../components/travel-manager";
 
 const TravelManagerPage: React.FC = () => {
   const { currentOrganization } = useAuth();
@@ -26,10 +34,6 @@ const TravelManagerPage: React.FC = () => {
     billingAddress: currentOrganization?.address || "No address set",
     phoneNumber: currentOrganization?.phone || "No phone number set",
   });
-  
-  // Edit mode states
-  const [editMode, setEditMode] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
   
   // Modal states
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -109,26 +113,6 @@ const TravelManagerPage: React.FC = () => {
       }));
     }
   }, [currentOrganization]);
-  
-  // Edit handlers
-  const handleEdit = (field: string, currentValue: string) => {
-    setEditMode(field);
-    setEditValue(currentValue);
-  };
-  
-  const handleSave = (field: string) => {
-    setCompanyData(prev => ({
-      ...prev,
-      [field]: editValue
-    }));
-    setEditMode(null);
-    setEditValue("");
-  };
-  
-  const handleCancel = () => {
-    setEditMode(null);
-    setEditValue("");
-  };
   
   // Load organization members and invitations
   const loadMembersData = async () => {
@@ -319,713 +303,108 @@ const TravelManagerPage: React.FC = () => {
           
           {/* Main Content Area */}
           <div className="flex-1">
-          {/* Company Profile Tab */}
-          {activeMainTab === "company" && activeSubTab === "profile" && (
-            <div className="space-y-8">
-              <div className="text-center">
-                <h1 className="text-3xl font-bold text-gray-900 mb-3">
-                  Company Profile
-                </h1>
-                <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                  Manage your company information and settings to keep your travel platform up to date.
-                </p>
-              </div>
+            {/* Company Profile Tab */}
+            {activeMainTab === "company" && activeSubTab === "profile" && currentOrganization && (
+              <CompanyProfile 
+                companyData={companyData}
+                organizationId={currentOrganization.id}
+                onUpdate={(field, value) => {
+                  setCompanyData(prev => ({
+                    ...prev,
+                    [field]: value
+                  }));
+                }}
+              />
+            )}
 
-              <div className="grid gap-6">
-                {/* Company Name Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h4M9 7h6m-6 4h6m-6 4h6" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">Company Name</h3>
-                          <div className="text-sm text-gray-500 mb-3">Your organization's display name</div>
-                          {editMode === 'name' ? (
-                            <div className="flex items-center space-x-3">
-                              <input
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Enter company name"
-                              />
-                              <button
-                                onClick={() => handleSave('name')}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={handleCancel}
-                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <p className="text-lg font-medium text-gray-900">
-                              {companyData.name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {editMode !== 'name' && (
-                        <button 
-                          onClick={() => handleEdit('name', companyData.name)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            {/* People Tab */}
+            {activeMainTab === "people" && (
+              <PeopleManagement
+                members={members}
+                invitations={invitations}
+                loading={loadingMembers}
+                error={error}
+                currentOrganization={currentOrganization}
+                onCreateUser={() => setShowCreateUserModal(true)}
+                onInviteUser={() => setShowInviteUserModal(true)}
+                onRemoveUser={handleRemoveUser}
+              />
+            )}
 
-                {/* Billing Address Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4 flex-1">
-                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">Billing Address</h3>
-                          <div className="text-sm text-gray-500 mb-3">Your company's billing and correspondence address</div>
-                          {editMode === 'billingAddress' ? (
-                            <div className="space-y-3">
-                              <textarea
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                rows={4}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                placeholder="Enter billing address"
-                              />
-                              <div className="flex space-x-3">
-                                <button
-                                  onClick={() => handleSave('billingAddress')}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={handleCancel}
-                                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-gray-900 whitespace-pre-line">
-                              {companyData.billingAddress}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {editMode !== 'billingAddress' && (
-                        <button 
-                          onClick={() => handleEdit('billingAddress', companyData.billingAddress)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 flex-shrink-0"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            {/* Payment Tab */}
+            {activeMainTab === "payment" && (
+              <PaymentMethods
+                paymentMethods={paymentMethods}
+                onAddCard={() => setShowAddCardModal(true)}
+              />
+            )}
 
-                {/* Phone Number Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">Phone Number</h3>
-                          <div className="text-sm text-gray-500 mb-3">Primary contact number for your organization</div>
-                          {editMode === 'phoneNumber' ? (
-                            <div className="flex items-center space-x-3">
-                              <input
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Enter phone number"
-                              />
-                              <button
-                                onClick={() => handleSave('phoneNumber')}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={handleCancel}
-                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <p className="text-lg font-medium text-gray-900">
-                              {companyData.phoneNumber}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {editMode !== 'phoneNumber' && (
-                        <button 
-                          onClick={() => handleEdit('phoneNumber', companyData.phoneNumber)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            {/* Policies Tab */}
+            {activeMainTab === "policies" && (
+              <TravelPolicies
+                organizationPolicies={organizationPolicies}
+                policyGroups={policyGroups}
+                outOfPolicyReasons={outOfPolicyReasons}
+              />
+            )}
 
-          {/* People Tab */}
-          {activeMainTab === "people" && (
-            <div>
-              <div className="mb-8 flex justify-between items-start">
-                <div>
-                  <h2 className="title-text font-normal text-chatgpt-text-primary mb-1">
-                    People Management
-                  </h2>
-                  <p className="content-text text-chatgpt-text-secondary">
-                    Manage users and invitations for your organization.
-                  </p>
-                  {currentOrganization && (
-                    <p className="sidebar-text text-gray-500 mt-1">
-                      {currentOrganization.name} • {members.length} member{members.length !== 1 ? 's' : ''}
-                      {invitations.length > 0 && ` • ${invitations.length} pending invitation${invitations.length !== 1 ? 's' : ''}`}
-                    </p>
-                  )}
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setShowInviteUserModal(true)}
-                    className="chatgpt-button flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Invite User
-                  </button>
-                  <button
-                    onClick={() => setShowCreateUserModal(true)}
-                    className="chatgpt-primary-button flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Create User
-                  </button>
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                  <div className="flex">
-                    <svg className="w-5 h-5 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                    {error}
-                  </div>
-                </div>
-              )}
-
-              {/* Loading State */}
-              {loadingMembers ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading organization members...</p>
-                </div>
-              ) : !currentOrganization ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                  <div className="mx-auto h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-                    <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Select an organization</h3>
-                  <p className="text-gray-600">Please select an organization from the sidebar to manage its members.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Members List */}
-                  <div>
-                    <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Organization Members</h3>
-                    
-                    {members.length === 0 ? (
-                      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-                        <div className="mx-auto h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                          <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        </div>
-                        <h3 className="content-text font-normal text-gray-900 mb-2">No members yet</h3>
-                        <p className="sidebar-text text-gray-600 mb-4">Get started by creating or inviting users to your organization.</p>
-                      </div>
-                    ) : (
-                      <div className="bg-white border border-gray-200 rounded-lg p-3">
-                        <div className="space-y-0">
-                          {members.map((member) => (
-                            <div key={member.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                                    <span className="sidebar-text font-normal text-white">
-                                      {(member.user_profiles.first_name?.charAt(0) || member.user_profiles.email.charAt(0)).toUpperCase()}
-                                    </span>
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="content-text font-normal text-chatgpt-text-primary">
-                                      {member.user_profiles.first_name && member.user_profiles.last_name
-                                        ? `${member.user_profiles.first_name} ${member.user_profiles.last_name}`
-                                        : 'No name set'
-                                      }
-                                    </div>
-                                    <div className="sidebar-text text-chatgpt-text-secondary">
-                                      {member.user_profiles.email}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal capitalize ${
-                                    member.role === 'admin' || member.role === 'owner' ? 'bg-purple-100 text-purple-700' : 
-                                    member.role === 'manager' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {member.role}
-                                  </span>
-                                  {member.is_primary && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-green-100 text-green-700">
-                                      Primary
-                                    </span>
-                                  )}
-                                  <button 
-                                    onClick={() => handleRemoveUser(member.user_id)}
-                                    className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="mt-2 ml-11">
-                                <p className="sidebar-text text-gray-500">
-                                  Joined {new Date(member.created_at).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Pending Invitations */}
-                  {invitations.length > 0 && (
-                    <div>
-                      <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Pending Invitations</h3>
-                      <div className="bg-white border border-gray-200 rounded-lg p-3">
-                        <div className="space-y-0">
-                          {invitations.map((invitation) => (
-                            <div key={invitation.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="content-text font-normal text-chatgpt-text-primary">{invitation.email}</p>
-                                  <p className="sidebar-text text-chatgpt-text-secondary">
-                                    Invited {new Date(invitation.created_at).toLocaleDateString()} • Role: {invitation.role}
-                                  </p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-yellow-100 text-yellow-700">
-                                    Pending
-                                  </span>
-                                  <button className="text-gray-400 hover:text-gray-600 transition-colors duration-200">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Payment Tab */}
-          {activeMainTab === "payment" && (
-            <div>
-              <div className="mb-8 flex justify-between items-start">
-                <div>
-                  <h2 className="title-text font-normal text-chatgpt-text-primary mb-1">
-                    Payment Methods
-                  </h2>
-                  <p className="content-text text-chatgpt-text-secondary">
-                    Manage your organization's payment methods.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddCardModal(true)}
-                  className="chatgpt-primary-button flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  Add Credit Card
-                </button>
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-lg p-3">
-                <div className="space-y-0">
-                  {paymentMethods.map((method) => (
-                    <div key={method.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-7 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                            <span className="sidebar-text font-normal text-gray-600">{method.type}</span>
-                          </div>
-                          <div>
-                            <p className="content-text font-normal text-chatgpt-text-primary">{method.name}</p>
-                            <p className="sidebar-text text-chatgpt-text-secondary">
-                              •••• •••• •••• {method.lastFour} • Expires {method.expiry}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          {method.isDefault && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-green-100 text-green-700">
-                              Default
-                            </span>
-                          )}
-                          <button className="text-gray-400 hover:text-gray-600 transition-colors duration-200">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Policies Tab */}
-          {activeMainTab === "policies" && (
-            <div>
-              <div className="mb-8">
-                <h2 className="title-text font-normal text-chatgpt-text-primary mb-1">
-                  Travel Policies
+            {/* Other Tabs */}
+            {activeSubTab === "permissions" && (
+              <div className="text-center py-12">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Permissions
                 </h2>
-                <p className="content-text text-chatgpt-text-secondary">
-                  Manage your organization's travel policies and rules.
+                <p className="text-gray-600">
+                  Permissions management coming soon.
                 </p>
               </div>
+            )}
 
-              <div className="space-y-6">
-                {/* Organization Policies */}
-                <div>
-                  <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Organization Policies</h3>
-                  <div className="bg-white border border-gray-200 rounded-lg p-3">
-                    <div className="space-y-0">
-                      {organizationPolicies.map((policy) => (
-                        <div key={policy.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">{policy.name}</h4>
-                              <p className="sidebar-text text-chatgpt-text-secondary mb-2">{policy.outOfPolicyMessage}</p>
-                              <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-blue-100 text-blue-700 capitalize">
-                                {policy.preTripApproval.replace('_', ' ')}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2 ml-4">
-                              <button className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200">Edit</button>
-                              <button className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200">Delete</button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Policy Groups */}
-                <div>
-                  <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Policy Groups</h3>
-                  <div className="bg-white border border-gray-200 rounded-lg p-3">
-                    <div className="space-y-0">
-                      {policyGroups.map((group) => (
-                        <div key={group.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">{group.name}</h4>
-                              <p className="sidebar-text text-chatgpt-text-secondary mb-2">{group.description}</p>
-                              <span className="sidebar-text text-gray-500">Priority: {group.priority}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 ml-4">
-                              <button className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200">Edit</button>
-                              <button className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200">Delete</button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Out of Policy Reasons */}
-                <div>
-                  <h3 className="content-text font-normal text-chatgpt-text-primary mb-4">Out of Policy Reasons</h3>
-                  <div className="bg-white border border-gray-200 rounded-lg p-3">
-                    <div className="space-y-0">
-                      {outOfPolicyReasons.map((reason) => (
-                        <div key={reason.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">{reason.reason}</h4>
-                              <p className="sidebar-text text-chatgpt-text-secondary mb-2">{reason.description}</p>
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal ${
-                                reason.requiresApproval ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                              }`}>
-                                {reason.requiresApproval ? 'Requires Approval' : 'No Approval Required'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2 ml-4">
-                              <button className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200">Edit</button>
-                              <button className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200">Delete</button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+            {activeSubTab === "custom-fields" && (
+              <div className="text-center py-12">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Custom Fields
+                </h2>
+                <p className="text-gray-600">
+                  Custom fields management coming soon.
+                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeSubTab === "permissions" && (
-            <div className="text-center py-12">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Permissions
-              </h2>
-              <p className="text-gray-600">
-                Permissions management coming soon.
-              </p>
-            </div>
-          )}
-
-          {activeSubTab === "custom-fields" && (
-            <div className="text-center py-12">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Custom Fields
-              </h2>
-              <p className="text-gray-600">
-                Custom fields management coming soon.
-              </p>
-            </div>
-          )}
-
-          {activeSubTab === "email" && (
-            <div className="text-center py-12">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Email
-              </h2>
-              <p className="text-gray-600">Email settings coming soon.</p>
-            </div>
-          )}
+            {activeSubTab === "email" && (
+              <div className="text-center py-12">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Email
+                </h2>
+                <p className="text-gray-600">Email settings coming soon.</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Create User Modal */}
-        {showCreateUserModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Create New User</h3>
-                <form onSubmit={handleCreateUser} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">First Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={createUserForm.firstName}
-                      onChange={(e) => setCreateUserForm(prev => ({ ...prev, firstName: e.target.value }))}
-                      className="chatgpt-input w-full mt-1" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={createUserForm.lastName}
-                      onChange={(e) => setCreateUserForm(prev => ({ ...prev, lastName: e.target.value }))}
-                      className="chatgpt-input w-full mt-1" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <input 
-                      type="email" 
-                      required
-                      value={createUserForm.email}
-                      onChange={(e) => setCreateUserForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="chatgpt-input w-full mt-1" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Role</label>
-                    <select 
-                      value={createUserForm.role}
-                      onChange={(e) => setCreateUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="chatgpt-select w-full mt-1"
-                    >
-                      <option value="member">Member</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                    <div className="flex">
-                      <svg className="w-5 h-5 text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <div className="text-sm text-yellow-700">
-                        <p>User will be created with a temporary password. They should change it on first login.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateUserModal(false);
-                        setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'member' });
-                      }}
-                      className="chatgpt-button"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="chatgpt-primary-button"
-                    >
-                      Create User
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
+        <CreateUserModal
+          isOpen={showCreateUserModal}
+          form={createUserForm}
+          onClose={() => {
+            setShowCreateUserModal(false);
+            setCreateUserForm({ firstName: '', lastName: '', email: '', role: 'member' });
+          }}
+          onSubmit={handleCreateUser}
+          onChange={(field, value) => setCreateUserForm(prev => ({ ...prev, [field]: value }))}
+        />
 
         {/* Invite User Modal */}
-        {showInviteUserModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Invite User</h3>
-                <form onSubmit={handleInviteUser} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Email Address</label>
-                    <input 
-                      type="email" 
-                      required
-                      value={inviteUserForm.email}
-                      onChange={(e) => setInviteUserForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="chatgpt-input w-full mt-1" 
-                      placeholder="user@example.com" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Role</label>
-                    <select 
-                      value={inviteUserForm.role}
-                      onChange={(e) => setInviteUserForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="chatgpt-select w-full mt-1"
-                    >
-                      <option value="member">Member</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Message (Optional)</label>
-                    <textarea 
-                      rows={3}
-                      value={inviteUserForm.message}
-                      onChange={(e) => setInviteUserForm(prev => ({ ...prev, message: e.target.value }))}
-                      className="chatgpt-input w-full mt-1" 
-                      placeholder="Add a personal message to the invitation..."
-                    />
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div className="flex">
-                      <svg className="w-5 h-5 text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      <div className="text-sm text-blue-700">
-                        <p>An invitation email will be sent to the user. They can accept the invitation to join your organization.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowInviteUserModal(false);
-                        setInviteUserForm({ email: '', role: 'member', message: '' });
-                      }}
-                      className="chatgpt-button"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="chatgpt-primary-button"
-                    >
-                      Send Invitation
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
+        <InviteUserModal
+          isOpen={showInviteUserModal}
+          form={inviteUserForm}
+          onClose={() => {
+            setShowInviteUserModal(false);
+            setInviteUserForm({ email: '', role: 'member', message: '' });
+          }}
+          onSubmit={handleInviteUser}
+          onChange={(field, value) => setInviteUserForm(prev => ({ ...prev, [field]: value }))}
+        />
 
         {/* Add Credit Card Modal */}
         {showAddCardModal && (
@@ -1035,28 +414,28 @@ const TravelManagerPage: React.FC = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Add Credit Card</h3>
                 <form className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Card Number</label>
-                    <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="1234 5678 9012 3456" />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
+                    <input type="text" className="chatgpt-input w-full" placeholder="1234 5678 9012 3456" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
-                      <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="MM/YY" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+                      <input type="text" className="chatgpt-input w-full" placeholder="MM/YY" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">CVV</label>
-                      <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="123" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">CVV</label>
+                      <input type="text" className="chatgpt-input w-full" placeholder="123" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Cardholder Name</label>
-                    <input type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="John Doe" />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Cardholder Name</label>
+                    <input type="text" className="chatgpt-input w-full" placeholder="John Doe" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Billing Address</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Billing Address</label>
                     <textarea 
                       rows={3}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                      className="chatgpt-input w-full" 
                       placeholder="123 Main St, City, State, ZIP"
                     />
                   </div>
@@ -1068,13 +447,13 @@ const TravelManagerPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowAddCardModal(false)}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                      className="chatgpt-button"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      className="chatgpt-primary-button"
                     >
                       Add Card
                     </button>
