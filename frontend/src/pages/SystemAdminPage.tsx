@@ -3,8 +3,8 @@ import Layout from '../components/common/Layout';
 import { 
   SystemAdminService, 
   SystemAdminOrganization, 
-  OrganizationUser, 
-  CreateUserData 
+  CreateUserData,
+  CreateOrganizationData 
 } from '../services/systemAdminService';
 
 const SystemAdminPage: React.FC = () => {
@@ -29,6 +29,13 @@ const SystemAdminPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredOrganizations, setFilteredOrganizations] = useState<SystemAdminOrganization[]>([]);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [createOrgForm, setCreateOrgForm] = useState({
+    name: '',
+    address: '',
+    phone: '',
+    parent_org_id: '',
+  });
 
   useEffect(() => {
     loadData();
@@ -122,6 +129,51 @@ const SystemAdminPage: React.FC = () => {
     }
   };
 
+  const handleCreateOrganization = async () => {
+    if (!createOrgForm.name || !createOrgForm.address || !createOrgForm.phone) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setError(null);
+      const orgData: CreateOrganizationData = {
+        name: createOrgForm.name,
+        address: createOrgForm.address,
+        phone: createOrgForm.phone,
+        parent_org_id: createOrgForm.parent_org_id || undefined,
+      };
+      
+      await SystemAdminService.createOrganization(orgData);
+      setSuccess('Organization created successfully');
+      setShowCreateOrg(false);
+      setCreateOrgForm({
+        name: '',
+        address: '',
+        phone: '',
+        parent_org_id: '',
+      });
+      await loadData(); // Reload data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create organization');
+    }
+  };
+
+  const handleDeleteOrganization = async (orgId: string, orgName: string) => {
+    if (!window.confirm(`Are you sure you want to delete organization "${orgName}"? This will also remove all users from this organization.`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await SystemAdminService.deleteOrganization(orgId);
+      setSuccess('Organization deleted successfully');
+      await loadData(); // Reload data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete organization');
+    }
+  };
+
   const renderOrganizationCard = (org: SystemAdminOrganization, isChild = false, depth = 0) => {
     const isExpanded = selectedOrg === org.id;
     
@@ -204,10 +256,19 @@ const SystemAdminPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex items-center space-x-3">
                 <p className="sidebar-text text-gray-600">
                   Created {new Date(org.created_at).toLocaleDateString()}
                 </p>
+                <button
+                  onClick={() => handleDeleteOrganization(org.id, org.name)}
+                  className="text-red-600 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50"
+                  title="Delete Organization"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -341,12 +402,34 @@ const SystemAdminPage: React.FC = () => {
                         <span className="sidebar-text text-gray-500">
                           Joined {new Date(user.joined_at).toLocaleDateString()}
                         </span>
-                        <button
-                          onClick={() => handleDeleteUser(user.id, org.id, `${user.first_name} ${user.last_name}`)}
-                          className="sidebar-text text-red-600 hover:text-red-700 transition-colors ml-4"
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleDeleteUser(user.id, org.id, `${user.first_name} ${user.last_name}`)}
+                            className="sidebar-text text-orange-600 hover:text-orange-700 transition-colors"
+                            title="Remove from organization"
+                          >
+                            Remove
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Are you sure you want to permanently delete user "${user.first_name} ${user.last_name}" from the entire system? This cannot be undone.`)) {
+                                return;
+                              }
+                              try {
+                                setError(null);
+                                await SystemAdminService.deleteUser(user.id);
+                                setSuccess('User permanently deleted');
+                                await loadData();
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : 'Failed to delete user');
+                              }
+                            }}
+                            className="sidebar-text text-red-600 hover:text-red-700 transition-colors"
+                            title="Delete user permanently"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -452,6 +535,83 @@ const SystemAdminPage: React.FC = () => {
           </div>
         )}
 
+        {/* Create Organization Form */}
+        {showCreateOrg && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+            <h3 className="title-text font-normal text-blue-900 mb-4">Create New Organization</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Organization Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter organization name"
+                  value={createOrgForm.name}
+                  onChange={(e) => setCreateOrgForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="chatgpt-input w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent Organization
+                </label>
+                <select
+                  value={createOrgForm.parent_org_id}
+                  onChange={(e) => setCreateOrgForm(prev => ({ ...prev, parent_org_id: e.target.value }))}
+                  className="chatgpt-input w-full"
+                >
+                  <option value="">None (Create as parent organization)</option>
+                  {organizations.map(org => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter address"
+                  value={createOrgForm.address}
+                  onChange={(e) => setCreateOrgForm(prev => ({ ...prev, address: e.target.value }))}
+                  className="chatgpt-input w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Enter phone number"
+                  value={createOrgForm.phone}
+                  onChange={(e) => setCreateOrgForm(prev => ({ ...prev, phone: e.target.value }))}
+                  className="chatgpt-input w-full"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCreateOrganization}
+                className="chatgpt-primary-button"
+              >
+                Create Organization
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateOrg(false);
+                  setCreateOrgForm({ name: '', address: '', phone: '', parent_org_id: '' });
+                }}
+                className="chatgpt-button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading ? (
           <div className="text-center py-12">
@@ -529,6 +689,15 @@ const SystemAdminPage: React.FC = () => {
                     </div>
                   </button>
                 </div>
+                <button
+                  onClick={() => setShowCreateOrg(true)}
+                  className="chatgpt-primary-button flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>New Organization</span>
+                </button>
                 <button
                   onClick={loadData}
                   className="chatgpt-button flex items-center space-x-2"

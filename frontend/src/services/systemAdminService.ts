@@ -32,6 +32,13 @@ export interface CreateUserData {
   is_primary?: boolean;
 }
 
+export interface CreateOrganizationData {
+  name: string;
+  address: string;
+  phone: string;
+  parent_org_id?: string;
+}
+
 export class SystemAdminService {
   /**
    * Get all organizations with their hierarchical structure
@@ -223,6 +230,69 @@ export class SystemAdminService {
       if (userError) throw userError;
     } catch (error) {
       console.error('Error deleting user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new organization
+   */
+  static async createOrganization(orgData: CreateOrganizationData): Promise<void> {
+    try {
+      // Create organization with explicit null values to avoid foreign key issues
+      const { error } = await supabase
+        .from('organizations')
+        .insert({
+          name: orgData.name,
+          address: orgData.address,
+          phone: orgData.phone,
+          parent_org_id: orgData.parent_org_id || null,
+          is_parent: !orgData.parent_org_id, // If no parent, it's a parent org
+          created_by: null, // Explicitly set to null to avoid foreign key constraint
+          owner_id: null,   // Explicitly set to null to avoid foreign key constraint
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error creating organization:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an organization
+   */
+  static async deleteOrganization(orgId: string): Promise<void> {
+    try {
+      // First check if it has child organizations
+      const { data: children, error: childError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('parent_org_id', orgId);
+
+      if (childError) throw childError;
+
+      if (children && children.length > 0) {
+        throw new Error('Cannot delete organization with child organizations. Delete child organizations first.');
+      }
+
+      // Delete all user relationships first
+      const { error: userOrgError } = await supabase
+        .from('user_organizations')
+        .delete()
+        .eq('org_id', orgId);
+
+      if (userOrgError) throw userOrgError;
+
+      // Then delete the organization
+      const { error: orgError } = await supabase
+        .from('organizations')
+        .delete()
+        .eq('id', orgId);
+
+      if (orgError) throw orgError;
+    } catch (error) {
+      console.error('Error deleting organization:', error);
       throw error;
     }
   }
