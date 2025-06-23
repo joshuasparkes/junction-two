@@ -1,6 +1,7 @@
-import { createBookingInSupabase, updateBookingConfirmation, getBookingByJunctionId } from './supabaseBookingService';
+import { createBookingInSupabase, updateBookingConfirmation, getBookingByJunctionId, updateBookingStatus } from './supabaseBookingService';
 import { addBookingToTrip } from './tripService';
 import { supabase } from '../lib/supabase';
+import { ApprovalService, CreateApprovalRequest } from './approvalService';
 
 const BACKEND_API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -168,6 +169,49 @@ export async function createBooking(bookingRequest: BookingRequest, policyEvalua
         fulfillment_info: data.fulfillmentInformation || data.ticketInformation || [],
       });
       console.log('🎫 Booking successfully saved to Supabase:', supabaseBooking);
+      
+      // Handle approval request creation if policy evaluation requires approval
+      if (policyEvaluation && orgId) {
+        const requiresApproval = policyEvaluation.result === 'APPROVAL_REQUIRED' || policyEvaluation.result === 'OUT_OF_POLICY';
+        
+        if (requiresApproval) {
+          console.log('🎫 Policy evaluation requires approval, creating approval request:', policyEvaluation);
+          
+          try {
+            // Create travel data for approval request
+            const travelData = {
+              train: {
+                price: parseFloat(baseFareAmount),
+                currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
+                class: data.booking?.trips?.[0]?.segments?.[0]?.serviceClass || 'Standard',
+                operator: data.booking?.trips?.[0]?.segments?.[0]?.operatingCarrier || 'Unknown',
+                departure_date: data.booking?.trips?.[0]?.segments?.[0]?.departureDateTime,
+              },
+              origin: data.booking?.trips?.[0]?.segments?.[0]?.origin?.name,
+              destination: data.booking?.trips?.[0]?.segments?.[0]?.destination?.name,
+            };
+            
+            // Create approval request
+            const approvalRequest: CreateApprovalRequest = {
+              org_id: orgId,
+              user_id: user.id,
+              travel_data: travelData,
+              policy_evaluation: policyEvaluation,
+            };
+            
+            await ApprovalService.createApprovalRequest(approvalRequest);
+            console.log('🎫 Approval request created successfully');
+            
+            // Update booking status to pending-approval
+            await updateBookingStatus(supabaseBooking.id!, 'pending-approval');
+            console.log('🎫 Booking status updated to pending-approval');
+            
+          } catch (approvalError) {
+            console.error('🎫 Failed to create approval request:', approvalError);
+            // Don't throw error - booking was successful, approval is secondary
+          }
+        }
+      }
     } catch (supabaseError) {
       console.error('🎫 Failed to save booking to Supabase:', supabaseError);
       // This is a critical error - throw it so the user knows something went wrong

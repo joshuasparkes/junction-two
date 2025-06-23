@@ -22,6 +22,7 @@ import TravelerDetailsPage from "./pages/TravelerDetailsPage";
 import PaymentPage from "./pages/PaymentPage";
 import BookingConfirmationPage from "./pages/BookingConfirmationPage";
 import OrgManagerPage from "./pages/OrgManagerPage";
+import SystemAdminPage from "./pages/SystemAdminPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const App: React.FC = () => {
@@ -109,6 +110,15 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute requiredRoles={["manager"]}>
                       <OrgManagerPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/system-admin"
+                  element={
+                    <ProtectedRoute requiredRoles={["manager"]}>
+                      <SystemAdminPage />
                     </ProtectedRoute>
                   }
                 />

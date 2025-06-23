@@ -178,6 +178,21 @@ export class PolicyService {
     }
   }
 
+  static async deleteRule(ruleId: string): Promise<void> {
+    try {
+      const response = await fetch(`${POLICY_ENGINE_URL}/api/v1/policy-rules/${ruleId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete rule: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+      throw error;
+    }
+  }
+
   // Rule Specifications
   static async getRuleSpecifications(travelType?: string): Promise<RuleSpecification[]> {
     try {

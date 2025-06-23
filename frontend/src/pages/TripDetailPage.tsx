@@ -86,6 +86,8 @@ const TripDetailPage: React.FC = () => {
         return 'bg-green-100 text-green-800';
       case 'pending-payment':
         return 'bg-yellow-100 text-yellow-800';
+      case 'pending-approval':
+        return 'bg-orange-100 text-orange-800';
       case 'paid':
         return 'bg-blue-100 text-blue-800';
       case 'cancelled':
@@ -260,7 +262,9 @@ const TripDetailPage: React.FC = () => {
                                   Train Journey #{booking.junction_booking_id?.slice(-8)}
                                 </h3>
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text ${getStatusColor(booking.status)} whitespace-nowrap`}>
-                                  {booking.status === 'pending-payment' ? 'Pending Payment' : booking.status}
+                                  {booking.status === 'pending-payment' ? 'Pending Payment' : 
+                                   booking.status === 'pending-approval' ? 'Pending Approval' : 
+                                   booking.status}
                                 </span>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
@@ -304,6 +308,11 @@ const TripDetailPage: React.FC = () => {
                               >
                                 Confirm & Book
                               </button>
+                            )}
+                            {booking.status === 'pending-approval' && (
+                              <div className="mt-2 sidebar-text text-orange-600">
+                                Awaiting manager approval
+                              </div>
                             )}
                           </div>
                         </div>

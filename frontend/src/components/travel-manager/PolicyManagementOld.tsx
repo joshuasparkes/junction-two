@@ -16,7 +16,6 @@ const PolicyManagement: React.FC<PolicyManagementProps> = ({ currentOrganization
   const [error, setError] = useState<string | null>(null);
   const [showCreatePolicy, setShowCreatePolicy] = useState(false);
   const [showCreateRule, setShowCreateRule] = useState(false);
-  const [showRulesModal, setShowRulesModal] = useState(false);
 
   // Form states
   const [policyForm, setPolicyForm] = useState({
@@ -42,12 +41,12 @@ const PolicyManagement: React.FC<PolicyManagementProps> = ({ currentOrganization
     }
   }, [currentOrganization]);
 
-  // Load rules when policy is selected and modal is opened
+  // Load rules when policy is selected
   useEffect(() => {
-    if (selectedPolicy && showRulesModal) {
+    if (selectedPolicy) {
       loadPolicyRules(selectedPolicy.id);
     }
-  }, [selectedPolicy, showRulesModal]);
+  }, [selectedPolicy]);
 
   const loadPolicies = async () => {
     if (!currentOrganization) return;
@@ -145,34 +144,10 @@ const PolicyManagement: React.FC<PolicyManagementProps> = ({ currentOrganization
       if (selectedPolicy?.id === policyId) {
         setSelectedPolicy(null);
         setPolicyRules([]);
-        setShowRulesModal(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete policy');
     }
-  };
-
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!window.confirm('Are you sure you want to delete this rule?')) return;
-
-    try {
-      await PolicyService.deleteRule(ruleId);
-      setPolicyRules(policyRules.filter(r => r.id !== ruleId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete rule');
-    }
-  };
-
-  const openRulesModal = (policy: Policy) => {
-    setSelectedPolicy(policy);
-    setShowRulesModal(true);
-  };
-
-  const closeRulesModal = () => {
-    setShowRulesModal(false);
-    setSelectedPolicy(null);
-    setPolicyRules([]);
-    setShowCreateRule(false);
   };
 
   const selectedRuleSpec = ruleSpecs.find(spec => spec.code === ruleForm.code);
@@ -193,195 +168,143 @@ const PolicyManagement: React.FC<PolicyManagementProps> = ({ currentOrganization
         )}
       </div>
 
-      {/* Policies List */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="content-text font-normal text-chatgpt-text-primary">Travel Policies</h3>
-          <button
-            onClick={() => setShowCreatePolicy(true)}
-            className="chatgpt-primary-button text-sm"
-          >
-            Create Policy
-          </button>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Policies List */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="content-text font-normal text-chatgpt-text-primary">Travel Policies</h3>
+            <button
+              onClick={() => setShowCreatePolicy(true)}
+              className="chatgpt-primary-button text-sm"
+            >
+              Create Policy
+            </button>
+          </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-3">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading policies...</p>
-            </div>
-          ) : policies.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600">No policies found. Create your first policy to get started.</p>
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {policies.map((policy) => (
-                <div 
-                  key={policy.id} 
-                  className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">
-                        {policy.label}
-                      </h4>
-                      <p className="sidebar-text text-chatgpt-text-secondary mb-2">
-                        {policy.type} • {policy.action.replace('_', ' ')}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal ${
-                          policy.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {policy.active ? 'Active' : 'Inactive'}
-                        </span>
-                        {policy.enforce_approval && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-orange-100 text-orange-700">
-                            Requires Approval
+          <div className="bg-white border border-gray-200 rounded-lg p-3">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading policies...</p>
+              </div>
+            ) : policies.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No policies found. Create your first policy to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {policies.map((policy) => (
+                  <div 
+                    key={policy.id} 
+                    className={`p-3 rounded-md hover:bg-gray-50 transition-colors duration-200 cursor-pointer ${
+                      selectedPolicy?.id === policy.id ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={() => setSelectedPolicy(policy)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">
+                          {policy.label}
+                        </h4>
+                        <p className="sidebar-text text-chatgpt-text-secondary mb-2">
+                          {policy.type} • {policy.action.replace('_', ' ')}
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal ${
+                            policy.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {policy.active ? 'Active' : 'Inactive'}
                           </span>
-                        )}
+                          {policy.enforce_approval && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-orange-100 text-orange-700">
+                              Requires Approval
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePolicy(policy.id);
+                          }}
+                          className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <button 
-                        onClick={() => openRulesModal(policy)}
-                        className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200"
-                      >
-                        Manage Rules
-                      </button>
-                      <button 
-                        onClick={() => handleDeletePolicy(policy.id)}
-                        className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200"
-                      >
-                        Delete
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Policy Rules Modal */}
-      {showRulesModal && selectedPolicy && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h2 className="content-text font-normal text-chatgpt-text-primary">
-                Policy Rules - {selectedPolicy.label}
-              </h2>
-              <button
-                onClick={closeRulesModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 140px)' }}>
-              {/* Policy Info */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="content-text font-normal text-chatgpt-text-primary mb-2">{selectedPolicy.label}</h3>
-                <div className="flex items-center space-x-4">
-                  <span className="sidebar-text text-chatgpt-text-secondary">
-                    {selectedPolicy.type} • {selectedPolicy.action.replace('_', ' ')}
-                  </span>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal ${
-                    selectedPolicy.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {selectedPolicy.active ? 'Active' : 'Inactive'}
-                  </span>
-                  {selectedPolicy.enforce_approval && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal bg-orange-100 text-orange-700">
-                      Requires Approval
-                    </span>
-                  )}
-                </div>
+                ))}
               </div>
-
-              {/* Add Rule Button */}
-              <div className="mb-6">
-                <button
-                  onClick={() => setShowCreateRule(true)}
-                  className="chatgpt-primary-button inline-flex items-center justify-center"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Rule
-                </button>
-              </div>
-
-              {/* Rules List */}
-              <div>
-                {policyRules.length === 0 ? (
-                  <div className="text-center py-12">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No rules found</h3>
-                    <p className="mt-1 text-sm text-gray-500">Add rules to define how this policy behaves.</p>
-                  </div>
-                ) : (
-                  <div className="bg-white border border-gray-200 rounded-lg">
-                    <div className="space-y-0">
-                      {policyRules.map((rule) => {
-                        const spec = ruleSpecs.find(s => s.code === rule.code);
-                        return (
-                          <div key={rule.id} className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-200">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">
-                                  {spec?.name || rule.code}
-                                </h4>
-                                <p className="sidebar-text text-chatgpt-text-secondary mb-3">
-                                  {spec?.description}
-                                </p>
-                                <div className="flex items-center space-x-3">
-                                  <span className={`inline-flex items-center px-3 py-1 rounded-full sidebar-text font-normal ${
-                                    rule.action === 'BLOCK' ? 'bg-red-100 text-red-700' :
-                                    rule.action === 'APPROVE' ? 'bg-orange-100 text-orange-700' :
-                                    rule.action === 'HIDE' ? 'bg-gray-100 text-gray-700' :
-                                    'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    {rule.action.replace('_', ' ')}
-                                  </span>
-                                  {rule.vars && Object.keys(rule.vars).length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                      {Object.entries(rule.vars).map(([key, value]) => (
-                                        <span key={key} className="sidebar-text text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                          {key.replace('_', ' ')}: {String(value)}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <button
-                                  onClick={() => handleDeleteRule(rule.id)}
-                                  className="sidebar-text text-red-600 hover:text-red-700 transition-colors duration-200"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Policy Rules */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="content-text font-normal text-chatgpt-text-primary">
+              Policy Rules {selectedPolicy && `(${selectedPolicy.label})`}
+            </h3>
+            <button
+              onClick={() => setShowCreateRule(true)}
+              disabled={!selectedPolicy}
+              className="chatgpt-primary-button text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Rule
+            </button>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-3">
+            {!selectedPolicy ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">Select a policy to view its rules.</p>
+              </div>
+            ) : policyRules.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No rules found. Add rules to define policy behavior.</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {policyRules.map((rule) => {
+                  const spec = ruleSpecs.find(s => s.code === rule.code);
+                  return (
+                    <div key={rule.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="content-text font-normal text-chatgpt-text-primary mb-1">
+                            {spec?.name || rule.code}
+                          </h4>
+                          <p className="sidebar-text text-chatgpt-text-secondary mb-2">
+                            {spec?.description}
+                          </p>
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text font-normal ${
+                              rule.action === 'BLOCK' ? 'bg-red-100 text-red-700' :
+                              rule.action === 'APPROVE' ? 'bg-orange-100 text-orange-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {rule.action.replace('_', ' ')}
+                            </span>
+                            {rule.vars && Object.keys(rule.vars).length > 0 && (
+                              <span className="sidebar-text text-gray-500">
+                                {Object.entries(rule.vars).map(([key, value]) => 
+                                  `${key}: ${value}`
+                                ).join(', ')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Create Policy Modal */}
       {showCreatePolicy && (
@@ -457,8 +380,8 @@ const PolicyManagement: React.FC<PolicyManagementProps> = ({ currentOrganization
       )}
 
       {/* Create Rule Modal */}
-      {showCreateRule && selectedPolicy && showRulesModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[60]">
+      {showCreateRule && selectedPolicy && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Add Rule to {selectedPolicy.label}</h3>
