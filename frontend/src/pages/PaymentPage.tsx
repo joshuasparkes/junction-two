@@ -8,6 +8,7 @@ interface LocationState {
   booking: BookingResponse & { id: string };
   offer: TrainOffer;
   isReturn: boolean;
+  supabaseBookingId?: string;
 }
 
 const PaymentPage: React.FC = () => {

@@ -1,221 +1,284 @@
--- Policy Management Tables for Junction Two Travel Platform
+-- Policy Engine Tables for Junction Two Travel
+-- Run this in your Supabase SQL editor
 
--- Organization Policies Table
-CREATE TABLE organization_policies (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+-- Main policies table
+CREATE TABLE IF NOT EXISTS policies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    pre_trip_approval VARCHAR(50) NOT NULL CHECK (pre_trip_approval IN ('never', 'always', 'only_when_out_of_policy')),
-    out_of_policy_message TEXT,
-    flight_rules TEXT, -- leave blank for now
-    paid_seats TEXT, -- leave blank for now
-    refundable_fares TEXT, -- leave blank for now
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    UNIQUE(org_id, name)
+    label VARCHAR(512) NOT NULL,
+    type VARCHAR(32) NOT NULL DEFAULT 'TRAVEL', -- TRAVEL, ORG
+    active BOOLEAN NOT NULL DEFAULT true,
+    action VARCHAR(32) NOT NULL DEFAULT 'OUT_OF_POLICY', -- HIDE, BLOCK, APPROVE, OUT_OF_POLICY
+    enforce_approval BOOLEAN NOT NULL DEFAULT false,
+    message_for_reservation JSONB,
+    exclude_restricted_fares BOOLEAN NOT NULL DEFAULT false,
+    refundable_fares_enabled BOOLEAN NOT NULL DEFAULT false,
+    user_count BIGINT DEFAULT 0,
+    guest_count BIGINT DEFAULT 0,
+    approver_count BIGINT DEFAULT 0
 );
 
--- Policy Groups Table  
-CREATE TABLE policy_groups (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    priority INTEGER DEFAULT 0, -- for ordering policy groups
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    UNIQUE(org_id, name)
+-- Policy rules table
+CREATE TABLE IF NOT EXISTS policy_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    policy_id UUID NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+    code VARCHAR(64) NOT NULL, -- rule specification type
+    action VARCHAR(32) NOT NULL, -- HIDE, BLOCK, APPROVE, OUT_OF_POLICY
+    vars JSONB, -- rule parameters
+    active BOOLEAN NOT NULL DEFAULT true
 );
 
--- Out of Policy Reasons Table
-CREATE TABLE out_of_policy_reasons (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    reason VARCHAR(255) NOT NULL,
-    description TEXT,
-    is_active BOOLEAN DEFAULT true,
-    requires_approval BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+-- Policy rule exceptions table
+CREATE TABLE IF NOT EXISTS policy_rule_exceptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    policy_rule_id UUID NOT NULL REFERENCES policy_rules(id) ON DELETE CASCADE,
+    code VARCHAR(64) NOT NULL, -- exception specification type
+    vars JSONB, -- exception parameters
+    active BOOLEAN NOT NULL DEFAULT true
 );
 
--- Payment Methods Table (for mock data)
-CREATE TABLE payment_methods (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    type VARCHAR(50) NOT NULL CHECK (type IN ('credit_card', 'debit_card', 'bank_account')),
-    card_brand VARCHAR(50), -- visa, mastercard, amex, etc.
-    last_four_digits VARCHAR(4),
-    expiry_month INTEGER,
-    expiry_year INTEGER,
-    cardholder_name VARCHAR(255),
-    billing_address_line1 VARCHAR(255),
-    billing_address_line2 VARCHAR(255),
-    billing_city VARCHAR(100),
-    billing_state VARCHAR(100),
-    billing_postal_code VARCHAR(20),
-    billing_country VARCHAR(100),
-    is_default BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+-- Policy approvers table
+CREATE TABLE IF NOT EXISTS policy_approvers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    policy_id UUID NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    UNIQUE(policy_id, user_id)
 );
 
--- User Invitations Table
-CREATE TABLE user_invitations (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
-    invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    role VARCHAR(50) DEFAULT 'member',
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'expired', 'cancelled')),
-    invitation_token UUID DEFAULT gen_random_uuid(),
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
-    accepted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(org_id, email)
+-- User policy assignments table
+CREATE TABLE IF NOT EXISTS user_policy_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    policy_id UUID NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+    assigned_by UUID REFERENCES auth.users(id),
+    UNIQUE(user_id, policy_id)
 );
 
--- Enable RLS on all tables
-ALTER TABLE organization_policies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE policy_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE out_of_policy_reasons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_invitations ENABLE ROW LEVEL SECURITY;
+-- Rail stations/cities for location-based policies
+CREATE TABLE IF NOT EXISTS policy_rail_stations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    station_code VARCHAR(10) NOT NULL UNIQUE,
+    station_name VARCHAR(200) NOT NULL,
+    city_name VARCHAR(200) NOT NULL,
+    country_code VARCHAR(3) NOT NULL
+);
 
--- RLS Policies for organization_policies
-CREATE POLICY "Users can view org policies for their organizations" ON organization_policies
+-- Rail operators for preference policies
+CREATE TABLE IF NOT EXISTS policy_rail_operators (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    operator_code VARCHAR(10) NOT NULL UNIQUE,
+    operator_name VARCHAR(200) NOT NULL,
+    country_code VARCHAR(3) NOT NULL
+);
+
+-- Organization rail preferences
+CREATE TABLE IF NOT EXISTS org_rail_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    operator_code VARCHAR(10) NOT NULL,
+    policy_id UUID REFERENCES policies(id) ON DELETE SET NULL,
+    preference_level INTEGER NOT NULL DEFAULT 0, -- 0 = preferred, 1 = acceptable, -1 = avoid
+    UNIQUE(org_id, operator_code)
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_policies_org_id ON policies(org_id);
+CREATE INDEX IF NOT EXISTS idx_policies_active ON policies(active) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_policy_rules_policy_id ON policy_rules(policy_id);
+CREATE INDEX IF NOT EXISTS idx_policy_rules_active ON policy_rules(active) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_policy_rule_exceptions_rule_id ON policy_rule_exceptions(policy_rule_id);
+CREATE INDEX IF NOT EXISTS idx_policy_approvers_policy_id ON policy_approvers(policy_id);
+CREATE INDEX IF NOT EXISTS idx_policy_approvers_user_id ON policy_approvers(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_policy_assignments_user_id ON user_policy_assignments(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_policy_assignments_policy_id ON user_policy_assignments(policy_id);
+CREATE INDEX IF NOT EXISTS idx_policy_rail_stations_code ON policy_rail_stations(station_code);
+CREATE INDEX IF NOT EXISTS idx_policy_rail_operators_code ON policy_rail_operators(operator_code);
+CREATE INDEX IF NOT EXISTS idx_org_rail_preferences_org_id ON org_rail_preferences(org_id);
+
+-- Create approval_requests table
+CREATE TABLE IF NOT EXISTS approval_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    approver_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    travel_data JSONB NOT NULL,
+    policy_evaluation JSONB NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for approval_requests
+CREATE INDEX IF NOT EXISTS idx_approval_requests_org_id ON approval_requests(org_id);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_user_id ON approval_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_approver_id ON approval_requests(approver_id);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_created_at ON approval_requests(created_at);
+
+-- Enable RLS (Row Level Security)
+ALTER TABLE policies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE policy_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE policy_rule_exceptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE policy_approvers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_policy_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_rail_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_requests ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: Users can only see policies from their organizations
+CREATE POLICY "Users can view org policies" ON policies
     FOR SELECT USING (
         org_id IN (
-            SELECT organization_id FROM user_organizations 
+            SELECT org_id FROM user_organizations 
             WHERE user_id = auth.uid()
         )
     );
 
-CREATE POLICY "Admins can manage org policies" ON organization_policies
+CREATE POLICY "Users can manage org policies" ON policies
     FOR ALL USING (
         org_id IN (
-            SELECT organization_id FROM user_organizations 
+            SELECT org_id FROM user_organizations 
             WHERE user_id = auth.uid() 
-            AND role IN ('admin', 'owner')
+            AND role IN ('manager', 'admin')
         )
     );
 
--- RLS Policies for policy_groups
-CREATE POLICY "Users can view policy groups for their organizations" ON policy_groups
+-- Policy rules inherit from policies
+CREATE POLICY "Users can view org policy rules" ON policy_rules
     FOR SELECT USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid()
+        policy_id IN (
+            SELECT id FROM policies 
+            WHERE org_id IN (
+                SELECT org_id FROM user_organizations 
+                WHERE user_id = auth.uid()
+            )
         )
     );
 
-CREATE POLICY "Admins can manage policy groups" ON policy_groups
+CREATE POLICY "Users can manage org policy rules" ON policy_rules
     FOR ALL USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid() 
-            AND role IN ('admin', 'owner')
+        policy_id IN (
+            SELECT id FROM policies 
+            WHERE org_id IN (
+                SELECT org_id FROM user_organizations 
+                WHERE user_id = auth.uid() 
+                AND role IN ('manager', 'admin')
+            )
         )
     );
 
--- RLS Policies for out_of_policy_reasons
-CREATE POLICY "Users can view out of policy reasons for their organizations" ON out_of_policy_reasons
+-- Similar policies for other tables
+CREATE POLICY "Users can view org policy exceptions" ON policy_rule_exceptions
     FOR SELECT USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid()
+        policy_rule_id IN (
+            SELECT pr.id FROM policy_rules pr
+            JOIN policies p ON pr.policy_id = p.id
+            WHERE p.org_id IN (
+                SELECT org_id FROM user_organizations 
+                WHERE user_id = auth.uid()
+            )
         )
     );
 
-CREATE POLICY "Admins can manage out of policy reasons" ON out_of_policy_reasons
+CREATE POLICY "Users can manage org policy exceptions" ON policy_rule_exceptions
     FOR ALL USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid() 
-            AND role IN ('admin', 'owner')
+        policy_rule_id IN (
+            SELECT pr.id FROM policy_rules pr
+            JOIN policies p ON pr.policy_id = p.id
+            WHERE p.org_id IN (
+                SELECT org_id FROM user_organizations 
+                WHERE user_id = auth.uid() 
+                AND role IN ('manager', 'admin')
+            )
         )
     );
 
--- RLS Policies for payment_methods
-CREATE POLICY "Users can view payment methods for their organizations" ON payment_methods
-    FOR SELECT USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid()
-        )
-    );
+-- Insert some sample rail stations and operators
+INSERT INTO policy_rail_stations (station_code, station_name, city_name, country_code) VALUES
+('LDN', 'London St Pancras', 'London', 'GBR'),
+('PAR', 'Paris Gare du Nord', 'Paris', 'FRA'),
+('BRU', 'Brussels Central', 'Brussels', 'BEL'),
+('AMS', 'Amsterdam Central', 'Amsterdam', 'NLD')
+ON CONFLICT (station_code) DO NOTHING;
 
-CREATE POLICY "Admins can manage payment methods" ON payment_methods
-    FOR ALL USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid() 
-            AND role IN ('admin', 'owner')
-        )
-    );
+INSERT INTO policy_rail_operators (operator_code, operator_name, country_code) VALUES
+('EUR', 'Eurostar', 'GBR'),
+('THA', 'Thalys', 'FRA'),
+('ICE', 'ICE', 'DEU'),
+('AVE', 'AVE', 'ESP')
+ON CONFLICT (operator_code) DO NOTHING;
 
--- RLS Policies for user_invitations
-CREATE POLICY "Users can view invitations for their organizations" ON user_invitations
-    FOR SELECT USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid()
-        )
-    );
+-- Create a sample policy for testing (using your organization ID)
+INSERT INTO policies (org_id, label, type, active, action, enforce_approval) 
+SELECT '4ff9e8ea-9dec-4b90-95f2-a3cd667ac75c'::uuid, 'Standard Rail Travel Policy', 'TRAVEL', true, 'OUT_OF_POLICY', false
+WHERE NOT EXISTS (SELECT 1 FROM policies WHERE label = 'Standard Rail Travel Policy');
 
-CREATE POLICY "Admins can manage invitations" ON user_invitations
-    FOR ALL USING (
-        org_id IN (
-            SELECT organization_id FROM user_organizations 
-            WHERE user_id = auth.uid() 
-            AND role IN ('admin', 'owner')
-        )
-    );
-
--- Insert some sample data for development
-INSERT INTO organization_policies (org_id, name, pre_trip_approval, out_of_policy_message) 
+-- Add sample rules to the policy
+INSERT INTO policy_rules (policy_id, code, action, vars, active)
 SELECT 
-    o.id,
-    'Default Travel Policy',
-    'only_when_out_of_policy',
-    'Please provide justification for out-of-policy bookings'
-FROM organizations o 
-LIMIT 1;
+    p.id,
+    'train_max_od_price',
+    'APPROVE',
+    '{"max_price": 200, "currency": "EUR", "trip_type": "one_way"}'::jsonb,
+    true
+FROM policies p 
+WHERE p.label = 'Standard Rail Travel Policy'
+AND NOT EXISTS (
+    SELECT 1 FROM policy_rules pr 
+    WHERE pr.policy_id = p.id AND pr.code = 'train_max_od_price'
+);
 
-INSERT INTO policy_groups (org_id, name, description, priority)
+INSERT INTO policy_rules (policy_id, code, action, vars, active)
 SELECT 
-    o.id,
-    unnest(ARRAY['Executive Travel', 'Standard Travel', 'Budget Travel']),
-    unnest(ARRAY['High-tier travel options for executives', 'Standard business travel guidelines', 'Cost-effective travel options']),
-    unnest(ARRAY[1, 2, 3])
-FROM organizations o 
-LIMIT 1;
+    p.id,
+    'train_class_max',
+    'BLOCK',
+    '{"max_class": "FIRST", "exclude_premium": false}'::jsonb,
+    true
+FROM policies p 
+WHERE p.label = 'Standard Rail Travel Policy'
+AND NOT EXISTS (
+    SELECT 1 FROM policy_rules pr 
+    WHERE pr.policy_id = p.id AND pr.code = 'train_class_max'
+);
 
-INSERT INTO out_of_policy_reasons (org_id, reason, description, requires_approval)
-SELECT 
-    o.id,
-    unnest(ARRAY['Last minute booking', 'Client meeting requirement', 'No alternative available', 'Emergency travel']),
-    unnest(ARRAY['Booking made within 24 hours of travel', 'Required for important client meeting', 'No policy-compliant options available', 'Urgent business need']),
-    unnest(ARRAY[true, false, true, true])
-FROM organizations o 
-LIMIT 1;
+-- RLS Policies for approval_requests
+CREATE POLICY "Users can view org approval requests" ON approval_requests
+    FOR SELECT USING (
+        org_id IN (
+            SELECT org_id FROM user_organizations 
+            WHERE user_id = auth.uid()
+        )
+    );
 
--- Insert sample payment methods
-INSERT INTO payment_methods (org_id, type, card_brand, last_four_digits, expiry_month, expiry_year, cardholder_name, is_default)
-SELECT 
-    o.id,
-    unnest(ARRAY['credit_card', 'credit_card']),
-    unnest(ARRAY['visa', 'mastercard']),
-    unnest(ARRAY['1234', '5678']),
-    unnest(ARRAY[12, 6]),
-    unnest(ARRAY[2027, 2026]),
-    unnest(ARRAY['Company Travel Account', 'Backup Corporate Card']),
-    unnest(ARRAY[true, false])
-FROM organizations o 
-LIMIT 1;
+CREATE POLICY "Users can create approval requests" ON approval_requests
+    FOR INSERT WITH CHECK (
+        org_id IN (
+            SELECT org_id FROM user_organizations 
+            WHERE user_id = auth.uid()
+        )
+        AND user_id = auth.uid()
+    );
+
+CREATE POLICY "Approvers can update approval requests" ON approval_requests
+    FOR UPDATE USING (
+        approver_id = auth.uid()
+        OR org_id IN (
+            SELECT org_id FROM user_organizations 
+            WHERE user_id = auth.uid() 
+            AND role IN ('manager', 'admin')
+        )
+    );
+
+-- Update the policy engine service URL
+-- Add this to your environment variables:
+-- REACT_APP_POLICY_ENGINE_URL=http://localhost:5001

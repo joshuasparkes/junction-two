@@ -131,3 +131,12 @@ h1 {
   row-gap: 0.5rem;
   column-gap: 0.5rem;
 }
+
+/* Text color utilities */
+.text-chatgpt-text-primary {
+  color: #0d0d0d;
+}
+
+.text-chatgpt-text-secondary {
+  color: #6b7280; /* gray-500 */
+}

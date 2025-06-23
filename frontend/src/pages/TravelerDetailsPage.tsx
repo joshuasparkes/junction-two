@@ -6,11 +6,13 @@ import { createBooking } from "../services/bookingService";
 import { getTrips } from "../services/tripService";
 import { Trip } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { PolicyEvaluationResult } from "../services/policyService";
 
 interface LocationState {
   offer: TrainOffer;
   isReturn: boolean;
   passengerCount: number;
+  policyEvaluation?: PolicyEvaluationResult;
 }
 
 interface PassengerDetails {
@@ -30,7 +32,7 @@ const TravelerDetailsPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as LocationState;
-  const { user, currentOrganization } = useAuth();
+  const { currentOrganization } = useAuth();
 
   const [isBooking, setIsBooking] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -157,14 +159,14 @@ const TravelerDetailsPage: React.FC = () => {
         })),
       };
 
-      const booking = await createBooking(bookingData);
+      // Create booking (status: pending-payment) with policy evaluation
+      const booking = await createBooking(bookingData, state.policyEvaluation, currentOrganization?.id);
 
-      // Navigate to payment page
-      navigate("/payment", {
+      // Navigate to the specific trip details page
+      navigate(`/trips/${selectedTripId}`, {
         state: {
-          booking,
-          offer,
-          isReturn,
+          message: "Booking created successfully. You can confirm and pay for it below.",
+          newBookingId: booking.id
         },
       });
     } catch (error) {
@@ -506,7 +508,7 @@ const TravelerDetailsPage: React.FC = () => {
                   Processing booking...
                 </div>
               ) : (
-                `Next (€${offer.price.amount})`
+                `Continue (€${offer.price.amount})`
               )}
             </button>
           </div>

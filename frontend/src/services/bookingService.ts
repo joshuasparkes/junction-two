@@ -62,7 +62,33 @@ export interface BookingResponse {
   };
 }
 
-export async function createBooking(bookingRequest: BookingRequest): Promise<BookingResponse & { id: string }> {
+
+// Helper function to extract base fare amount from price breakdown
+const getBaseFareAmount = (data: any): string => {
+  console.log('🔍 Debugging price extraction:');
+  console.log('🔍 Full data structure:', JSON.stringify(data, null, 2));
+  
+  const priceBreakdown = data.booking?.priceBreakdown || data.priceBreakdown || [];
+  console.log('🔍 Price breakdown:', priceBreakdown);
+  
+  const baseFareItem = priceBreakdown.find((item: any) => item.breakdownType === 'base-fare');
+  console.log('🔍 Base fare item:', baseFareItem);
+  
+  if (baseFareItem?.price?.amount) {
+    console.log('🔍 Found base fare amount:', baseFareItem.price.amount);
+    return baseFareItem.price.amount;
+  }
+  
+  // Fallback to total price if base fare not found
+  const fallbackAmount = data.booking?.price?.amount || data.price?.amount || '0';
+  console.log('🔍 Using fallback amount:', fallbackAmount);
+  console.log('🔍 data.booking?.price:', data.booking?.price);
+  console.log('🔍 data.price:', data.price);
+  
+  return fallbackAmount;
+};
+
+export async function createBooking(bookingRequest: BookingRequest, policyEvaluation?: any, orgId?: string): Promise<BookingResponse & { id: string }> {
   console.log('🎫 Creating booking via backend proxy:', bookingRequest);
   
   try {
@@ -103,35 +129,49 @@ export async function createBooking(bookingRequest: BookingRequest): Promise<Boo
       console.log('🎫 Current user for Supabase booking:', user);
       
       const bookingId = data.booking?.id || data.id;
-      if (user && bookingId) {
-        console.log('🎫 Attempting to save booking to Supabase:', {
-          junction_booking_id: bookingId,
-          trip_id: bookingRequest.tripId,
-          user_id: user.id,
-          total_amount: data.booking?.price?.amount || data.price?.amount || '0',
-          currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
-        });
-        
-        const supabaseBooking = await createBookingInSupabase({
-          junction_booking_id: bookingId,
-          trip_id: bookingRequest.tripId,
-          user_id: user.id,
-          total_amount: data.booking?.price?.amount || data.price?.amount || '0',
-          currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
-          vertical: 'rail', // Set to 'rail' for the create-booking endpoint
-          junction_response: data.fullJunctionResponse || data,
-          passengers_data: data.booking?.passengers || data.passengers || bookingRequest.passengers,
-          trips_data: data.booking?.trips || data.trips || [],
-          price_breakdown: data.booking?.priceBreakdown || data.priceBreakdown || [],
-          fulfillment_info: data.fulfillmentInformation || data.ticketInformation || [],
-        });
-        console.log('🎫 Booking successfully saved to Supabase:', supabaseBooking);
-      } else {
-        console.log('🎫 No user authenticated or no booking ID - skipping Supabase save');
+      if (!user) {
+        console.error('🎫 No user authenticated - cannot save booking to Supabase');
+        throw new Error('User not authenticated');
       }
+      
+      if (!bookingId) {
+        console.error('🎫 No booking ID found in response - cannot save to Supabase');
+        throw new Error('No booking ID found in response');
+      }
+      
+      if (!bookingRequest.tripId) {
+        console.error('🎫 No trip ID provided - cannot save booking to Supabase');
+        throw new Error('No trip ID provided');
+      }
+      
+      const baseFareAmount = getBaseFareAmount(data);
+      console.log('🎫 Attempting to save booking to Supabase:', {
+        junction_booking_id: bookingId,
+        trip_id: bookingRequest.tripId,
+        user_id: user.id,
+        total_amount: baseFareAmount,
+        currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
+      });
+      
+      const supabaseBooking = await createBookingInSupabase({
+        junction_booking_id: bookingId,
+        trip_id: bookingRequest.tripId,
+        user_id: user.id,
+        org_id: orgId, // Use the passed organization ID
+        total_amount: baseFareAmount,
+        currency: data.booking?.price?.currency || data.price?.currency || 'EUR',
+        vertical: 'rail', // Set to 'rail' for the create-booking endpoint
+        junction_response: data.fullJunctionResponse || data,
+        passengers_data: data.booking?.passengers || data.passengers || bookingRequest.passengers,
+        trips_data: data.booking?.trips || data.trips || [],
+        price_breakdown: data.booking?.priceBreakdown || data.priceBreakdown || [],
+        fulfillment_info: data.fulfillmentInformation || data.ticketInformation || [],
+      });
+      console.log('🎫 Booking successfully saved to Supabase:', supabaseBooking);
     } catch (supabaseError) {
       console.error('🎫 Failed to save booking to Supabase:', supabaseError);
-      // Don't throw error - backend booking was successful
+      // This is a critical error - throw it so the user knows something went wrong
+      throw new Error(`Failed to save booking: ${supabaseError instanceof Error ? supabaseError.message : 'Unknown error'}`);
     }
     
     // Return the booking data, handling both nested and flat response structures

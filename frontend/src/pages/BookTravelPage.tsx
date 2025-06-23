@@ -3,10 +3,15 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "../components/common/Layout";
 import OrgSelector from "../components/common/OrgSelector";
 import PlaceSearchInput from "../components/travel/PlaceSearchInput";
+import PolicyComplianceBadge, { usePolicyFilter } from "../components/travel/PolicyComplianceBadge";
+import PolicyWarningDialog from "../components/travel/PolicyWarningDialog";
+import { useAuth } from "../contexts/AuthContext";
 import { Place } from "../services/placesService";
 import { searchTrains, getReturnOffers, TrainOffer, formatTime, formatDate, formatDuration, getTransferCount } from "../services/trainService";
+import { PolicyService, PolicyEvaluationResult } from "../services/policyService";
 
 const BookTravelPage: React.FC = () => {
+  const { user, currentOrganization } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("rail");
@@ -31,6 +36,19 @@ const BookTravelPage: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [showReturnOptions, setShowReturnOptions] = useState(false);
   const [currentView, setCurrentView] = useState<'outbound' | 'return'>('outbound');
+  const [searchFormCollapsed, setSearchFormCollapsed] = useState(false);
+  
+  // Policy warning dialog state
+  const [showPolicyWarning, setShowPolicyWarning] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState<{ offer: TrainOffer; isReturn: boolean } | null>(null);
+  const [policyEvaluation, setPolicyEvaluation] = useState<PolicyEvaluationResult | null>(null);
+
+  // Policy filtering for train offers
+  const { filteredOffers: filteredTrainOffers, loading: policyLoading } = usePolicyFilter(
+    trainOffers, 
+    user, 
+    currentOrganization
+  );
 
   // Get initial tab from URL params
   useEffect(() => {
@@ -71,6 +89,7 @@ const BookTravelPage: React.FC = () => {
       setTrainOffers(results.items);
       setTrainSearchId(results.train_search_id || null);
       setHasSearched(true);
+      setSearchFormCollapsed(true);
       
       // Reset return trip state
       setReturnOffers([]);
@@ -126,14 +145,100 @@ const BookTravelPage: React.FC = () => {
   };
 
   // Handle booking navigation
-  const handleBookTrain = (offer: TrainOffer, isReturn: boolean = false) => {
+  const handleBookTrain = async (offer: TrainOffer, isReturn: boolean = false) => {
+    if (!user || !currentOrganization) {
+      // If no user/org, proceed without policy check
+      proceedWithBooking(offer, isReturn);
+      return;
+    }
+
+    try {
+      // Evaluate policy for the selected offer
+      const trainData = {
+        train: {
+          price: parseFloat(offer.price.amount),
+          currency: offer.price.currency || 'EUR',
+          class: getTrainClass(offer),
+          operator: getTrainOperator(offer),
+          departure_date: offer.trips?.[0]?.segments?.[0]?.departureAt,
+        },
+        origin: departureStation?.name,
+        destination: arrivalStation?.name,
+      };
+
+      const evaluation = await PolicyService.evaluatePolicy({
+        travel_data: trainData,
+        org_id: currentOrganization.id,
+        user_id: user.id,
+      });
+
+      // Check if the offer is out of policy
+      const requiresWarning = evaluation.result === 'OUT_OF_POLICY' || 
+                             evaluation.result === 'APPROVAL_REQUIRED';
+
+      if (requiresWarning) {
+        // Show policy warning dialog
+        setPendingBooking({ offer, isReturn });
+        setPolicyEvaluation(evaluation);
+        setShowPolicyWarning(true);
+      } else {
+        // Proceed directly
+        proceedWithBooking(offer, isReturn);
+      }
+    } catch (error) {
+      console.error('Policy evaluation failed:', error);
+      // If policy check fails, proceed anyway
+      proceedWithBooking(offer, isReturn);
+    }
+  };
+
+  const proceedWithBooking = (offer: TrainOffer, isReturn: boolean = false) => {
     navigate('/traveler-details', {
       state: {
         offer,
         isReturn,
-        passengerCount: passengers
+        passengerCount: passengers,
+        policyEvaluation: policyEvaluation // Pass policy evaluation to traveler details
       }
     });
+  };
+
+  const handlePolicyWarningConfirm = () => {
+    if (pendingBooking) {
+      proceedWithBooking(pendingBooking.offer, pendingBooking.isReturn);
+    }
+    setShowPolicyWarning(false);
+    setPendingBooking(null);
+    setPolicyEvaluation(null);
+  };
+
+  const handlePolicyWarningCancel = () => {
+    setShowPolicyWarning(false);
+    setPendingBooking(null);
+    setPolicyEvaluation(null);
+  };
+
+  // Helper functions for policy evaluation
+  const getTrainClass = (offer: any): string => {
+    const firstSegment = offer.trips?.[0]?.segments?.[0];
+    if (firstSegment?.fareClass) {
+      return firstSegment.fareClass.toUpperCase();
+    }
+    if (firstSegment?.bookingClass) {
+      return firstSegment.bookingClass.toUpperCase();
+    }
+    return 'STANDARD';
+  };
+
+  const getTrainOperator = (offer: any): string => {
+    const firstSegment = offer.trips?.[0]?.segments?.[0];
+    if (firstSegment?.vehicle?.name) {
+      return firstSegment.vehicle.name;
+    }
+    if (firstSegment?.operator) {
+      return firstSegment.operator;
+    }
+    return offer.metadata?.providerId || 'Unknown';
   };
 
   return (
@@ -385,172 +490,210 @@ const BookTravelPage: React.FC = () => {
         {/* Rail Search Form */}
         {activeTab === 'rail' && (
           <div className="bg-white rounded-lg shadow-sm py-6">
-            <div className="mb-6">
-              <div className="inline-flex p-1 bg-gray-200 rounded-full">
-                <button
-                  onClick={() => setTripType("roundtrip")}
-                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
-                    tripType === "roundtrip"
-                      ? "bg-white text-gray-900 shadow-sm z-10"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  Return
-                </button>
-                <button
-                  onClick={() => setTripType("oneway")}
-                  className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
-                    tripType === "oneway"
-                      ? "bg-white text-gray-900 shadow-sm z-10"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  One way
-                </button>
+            {/* Collapsed Search Summary */}
+            {searchFormCollapsed && hasSearched && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="content-text text-chatgpt-text-primary">
+                      {departureStation?.name} → {arrivalStation?.name}
+                    </div>
+                    <div className="sidebar-text text-chatgpt-text-secondary">
+                      {new Date(departureDate).toLocaleDateString()}
+                      {tripType === 'roundtrip' && returnDate && (
+                        <> - {new Date(returnDate).toLocaleDateString()}</>
+                      )}
+                    </div>
+                    <div className="sidebar-text text-chatgpt-text-secondary">
+                      {passengers} passenger{passengers !== 1 ? 's' : ''}
+                    </div>
+                    <div className="sidebar-text text-chatgpt-text-secondary">
+                      {tripType === 'roundtrip' ? 'Return' : 'One way'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSearchFormCollapsed(false)}
+                    className="chatgpt-button sidebar-text"
+                  >
+                    Edit search
+                  </button>
+                </div>
               </div>
+            )}
+            {!searchFormCollapsed && (
+              <div className="mb-6">
+                <div className="inline-flex p-1 bg-gray-200 rounded-full">
+                  <button
+                    onClick={() => setTripType("roundtrip")}
+                    className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                      tripType === "roundtrip"
+                        ? "bg-white text-gray-900 shadow-sm z-10"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Return
+                  </button>
+                  <button
+                    onClick={() => setTripType("oneway")}
+                    className={`px-4 py-1 rounded-full font-normal content-text transition-all duration-200 relative ${
+                      tripType === "oneway"
+                        ? "bg-white text-gray-900 shadow-sm z-10"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    One way
+                  </button>
+                </div>
 
-              <div className="ml-auto flex items-center space-x-4">
-                <select
-                  value={classType}
-                  onChange={(e) => setClassType(e.target.value)}
-                  className="chatgpt-select"
-                >
-                  <option value="standard">Standard</option>
-                  <option value="first">First Class</option>
-                  <option value="business">Business</option>
-                </select>
+                <div className="ml-auto flex items-center space-x-4">
+                  <select
+                    value={classType}
+                    onChange={(e) => setClassType(e.target.value)}
+                    className="chatgpt-select"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="first">First Class</option>
+                    <option value="business">Business</option>
+                  </select>
 
-                <label className="flex items-center text-sm text-gray-600">
-                  <input type="checkbox" className="mr-2 rounded" />
-                  Direct routes only
-                </label>
+                  <label className="flex items-center text-sm text-gray-600">
+                    <input type="checkbox" className="mr-2 rounded" />
+                    Direct routes only
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="flex items-end gap-4 mb-6">
-              <div className="flex-1">
-                <PlaceSearchInput
-                  label="Departure station"
-                  placeholder="Enter departure station"
-                  value={departureStation}
-                  onChange={setDepartureStation}
-                  searchType="railway-station"
-                  required
-                />
+            {!searchFormCollapsed && (
+              <div className="flex items-end gap-4 mb-6">
+                <div className="flex-1">
+                  <PlaceSearchInput
+                    label="Departure station"
+                    placeholder="Enter departure station"
+                    value={departureStation}
+                    onChange={setDepartureStation}
+                    searchType="railway-station"
+                    required
+                  />
+                </div>
+
+                {/* Switch Button */}
+                <div className="pb-3">
+                  <button 
+                    className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+                    onClick={() => {
+                      const temp = departureStation;
+                      setDepartureStation(arrivalStation);
+                      setArrivalStation(temp);
+                    }}
+                    title="Swap stations"
+                  >
+                    <svg className="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="flex-1">
+                  <PlaceSearchInput
+                    label="Arrival station"
+                    placeholder="Enter destination station"
+                    value={arrivalStation}
+                    onChange={setArrivalStation}
+                    searchType="railway-station"
+                    required
+                  />
+                </div>
               </div>
+            )}
 
-              {/* Switch Button */}
-              <div className="pb-3">
-                <button 
-                  className="p-2 rounded-md hover:bg-gray-100 transition-colors"
-                  onClick={() => {
-                    const temp = departureStation;
-                    setDepartureStation(arrivalStation);
-                    setArrivalStation(temp);
-                  }}
-                  title="Swap stations"
-                >
-                  <svg className="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </button>
-              </div>
+            {!searchFormCollapsed && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
-              <div className="flex-1">
-                <PlaceSearchInput
-                  label="Arrival station"
-                  placeholder="Enter destination station"
-                  value={arrivalStation}
-                  onChange={setArrivalStation}
-                  searchType="railway-station"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6m-6 0a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2V9a2 2 0 00-2-2" />
-                  </svg>
-                  Depart date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={departureDate}
-                  onChange={(e) => setDepartureDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="chatgpt-input w-full"
-                />
-              </div>
-
-              {tripType === "roundtrip" && (
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6m-6 0a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2V9a2 2 0 00-2-2" />
                     </svg>
-                    Return date <span className="text-red-500">*</span>
+                    Depart date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
-                    value={returnDate}
-                    onChange={(e) => setReturnDate(e.target.value)}
-                    min={departureDate || new Date().toISOString().split('T')[0]}
+                    value={departureDate}
+                    onChange={(e) => setDepartureDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                     className="chatgpt-input w-full"
                   />
                 </div>
-              )}
-            </div>
+
+                {tripType === "roundtrip" && (
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6m-6 0a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2V9a2 2 0 00-2-2" />
+                      </svg>
+                      Return date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={returnDate}
+                      onChange={(e) => setReturnDate(e.target.value)}
+                      min={departureDate || new Date().toISOString().split('T')[0]}
+                      className="chatgpt-input w-full"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Error message */}
-            {searchError && (
+            {searchError && !searchFormCollapsed && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
                 {searchError}
               </div>
             )}
 
-            <form onSubmit={handleTrainSearch}>
-              <div className="flex items-center justify-between">
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Passengers
-                  </label>
-                  <select 
-                    value={passengers}
-                    onChange={(e) => setPassengers(parseInt(e.target.value))}
-                    className="chatgpt-select"
-                  >
-                    <option value={1}>1 Adult</option>
-                    <option value={2}>2 Adults</option>
-                    <option value={3}>3 Adults</option>
-                    <option value={4}>4 Adults</option>
-                    <option value={5}>5 Adults</option>
-                    <option value={6}>6 Adults</option>
-                  </select>
-                </div>
+            {!searchFormCollapsed && (
+              <form onSubmit={handleTrainSearch}>
+                <div className="flex items-center justify-between">
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Passengers
+                    </label>
+                    <select 
+                      value={passengers}
+                      onChange={(e) => setPassengers(parseInt(e.target.value))}
+                      className="chatgpt-select"
+                    >
+                      <option value={1}>1 Adult</option>
+                      <option value={2}>2 Adults</option>
+                      <option value={3}>3 Adults</option>
+                      <option value={4}>4 Adults</option>
+                      <option value={5}>5 Adults</option>
+                      <option value={6}>6 Adults</option>
+                    </select>
+                  </div>
 
-                <button 
-                  type="submit"
-                  disabled={isSearching}
-                  className="chatgpt-primary-button"
-                >
-                  {isSearching ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Searching...
-                    </div>
-                  ) : (
-                    'Search trains'
-                  )}
-                </button>
-              </div>
-            </form>
+                  <button 
+                    type="submit"
+                    disabled={isSearching}
+                    className="chatgpt-primary-button"
+                  >
+                    {isSearching ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Searching...
+                      </div>
+                    ) : (
+                      'Search trains'
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
 
@@ -558,18 +701,23 @@ const BookTravelPage: React.FC = () => {
         {activeTab === 'rail' && hasSearched && (
           <div className="mt-8 space-y-6">
             {/* Results Container */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-3">
               {/* Header with Back Button */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="title-text font-normal text-chatgpt-text-primary">
                   {currentView === 'outbound' ? (
                     tripType === 'roundtrip' ? 'Outbound Journey' : 'Journey Options'
                   ) : (
                     'Return Journey'
                   )}
-                  {((currentView === 'outbound' ? trainOffers : returnOffers).length > 0) && (
-                    <span className="text-base font-normal text-gray-600 ml-2">
-                      ({(currentView === 'outbound' ? trainOffers : returnOffers).length} option{(currentView === 'outbound' ? trainOffers : returnOffers).length !== 1 ? 's' : ''})
+                  {((currentView === 'outbound' ? filteredTrainOffers : returnOffers).length > 0) && (
+                    <span className="content-text font-normal text-chatgpt-text-secondary ml-2">
+                      ({(currentView === 'outbound' ? filteredTrainOffers : returnOffers).length} option{(currentView === 'outbound' ? filteredTrainOffers : returnOffers).length !== 1 ? 's' : ''})
+                      {currentView === 'outbound' && trainOffers.length > filteredTrainOffers.length && (
+                        <span className="text-orange-600 ml-1">
+                          ({trainOffers.length - filteredTrainOffers.length} hidden by policy)
+                        </span>
+                      )}
                     </span>
                   )}
                 </h2>
@@ -578,7 +726,7 @@ const BookTravelPage: React.FC = () => {
                 {currentView === 'return' && (
                   <button
                     onClick={handleBackToOutbound}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="chatgpt-button sidebar-text flex items-center"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -589,60 +737,69 @@ const BookTravelPage: React.FC = () => {
               </div>
 
               {/* Display current offers based on view */}
-              {((currentView === 'outbound' ? trainOffers : returnOffers).length > 0) ? (
-                <div className="space-y-4">
-                  {(currentView === 'outbound' ? trainOffers : returnOffers).map((offer) => (
+              {((currentView === 'outbound' ? filteredTrainOffers : returnOffers).length > 0) ? (
+                <div className="space-y-0">
+                  {(currentView === 'outbound' ? filteredTrainOffers : returnOffers).map((offer) => (
                     <div 
                       key={offer.id} 
-                      className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
-                        selectedOutboundOffer?.id === offer.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      className={`p-3 rounded-md hover:bg-gray-50 transition-colors duration-200 ${
+                        selectedOutboundOffer?.id === offer.id ? 'chatgpt-selected' : ''
                       }`}
                     >
                       {/* Show outbound or return trip based on current view */}
-                      {offer.trips.slice(currentView === 'outbound' ? 0 : 1, currentView === 'outbound' ? 1 : 2).map((trip, tripIndex) => (
-                        <div key={tripIndex}>
+                      {offer.trips.slice(currentView === 'outbound' ? 0 : 1, currentView === 'outbound' ? 1 : 2).map((trip: any, tripIndex: number) => (
+                        <div className="border-b border-gray-200 pb-4" key={tripIndex}>
                           {/* Trip header */}
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center space-x-4">
-                              <div className="text-lg font-semibold text-gray-900">
+                              <div className="content-text font-normal text-chatgpt-text-primary">
                                 {formatTime(trip.segments[0].departureAt)} → {formatTime(trip.segments[trip.segments.length - 1].arrivalAt)}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="sidebar-text text-chatgpt-text-secondary">
                                 {formatDate(trip.segments[0].departureAt)}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="sidebar-text text-chatgpt-text-secondary">
                                 {formatDuration(trip.segments[0].departureAt, trip.segments[trip.segments.length - 1].arrivalAt)}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="sidebar-text text-chatgpt-text-secondary">
                                 {getTransferCount(trip) === 0 ? 'Direct' : `${getTransferCount(trip)} transfer${getTransferCount(trip) !== 1 ? 's' : ''}`}
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-2xl font-bold text-green-600">
+                              <div className="content-text font-normal text-green-600">
                                 €{offer.price.amount}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="sidebar-text text-chatgpt-text-secondary mb-2">
                                 {currentView === 'return' ? 'Total: Outbound + Return' : offer.metadata.providerId}
                               </div>
+                              {/* Policy Compliance Badge */}
+                              {currentView === 'outbound' && (
+                                <PolicyComplianceBadge
+                                  trainOffer={offer}
+                                  origin={departureStation?.id}
+                                  destination={arrivalStation?.id}
+                                  className="mb-2"
+                                />
+                              )}
                             </div>
                           </div>
 
                           {/* Segments */}
                           <div className="space-y-2 mb-4">
-                            {trip.segments.map((segment, segmentIndex) => (
+                            {trip.segments.map((segment: any, segmentIndex: number) => (
                               <div key={segmentIndex} className="flex items-center space-x-4 pl-4">
                                 <div className="flex items-center space-x-2">
                                   <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
                                   </svg>
-                                  <span className="font-medium text-blue-600">
+                                  <span className="sidebar-text font-normal text-blue-600">
                                     {segment.vehicle.name} {segment.vehicle.code}
                                   </span>
                                 </div>
-                                <div className="text-sm text-gray-600">
+                                <div className="sidebar-text text-chatgpt-text-secondary">
                                   {formatTime(segment.departureAt)} - {formatTime(segment.arrivalAt)}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="sidebar-text text-chatgpt-text-secondary">
                                   {formatDuration(segment.departureAt, segment.arrivalAt)}
                                 </div>
                               </div>
@@ -656,7 +813,7 @@ const BookTravelPage: React.FC = () => {
                                 <button 
                                   onClick={() => handleSelectOutbound(offer)}
                                   disabled={isLoadingReturn && selectedOutboundOffer?.id === offer.id}
-                                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                                  className="chatgpt-primary-button disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   {isLoadingReturn && selectedOutboundOffer?.id === offer.id ? (
                                     <div className="flex items-center">
@@ -672,7 +829,7 @@ const BookTravelPage: React.FC = () => {
                               ) : (
                                 <button 
                                   onClick={() => handleBookTrain(offer, false)}
-                                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                                  className="chatgpt-primary-button"
                                 >
                                   Book this train
                                 </button>
@@ -680,7 +837,7 @@ const BookTravelPage: React.FC = () => {
                             ) : (
                               <button 
                                 onClick={() => handleBookTrain(offer, true)}
-                                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                                className="chatgpt-primary-button"
                               >
                                 Book return journey (€{offer.price.amount})
                               </button>
@@ -692,17 +849,17 @@ const BookTravelPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
                   </svg>
-                  <p className="text-lg">
+                  <p className="content-text text-chatgpt-text-primary">
                     {currentView === 'outbound' 
                       ? 'No trains found for your search criteria'
                       : 'No return options found'
                     }
                   </p>
-                  <p className="text-sm mt-2">
+                  <p className="sidebar-text text-chatgpt-text-secondary mt-2">
                     {currentView === 'outbound'
                       ? 'Try adjusting your departure date or stations'
                       : 'Try selecting a different outbound journey'
@@ -714,6 +871,15 @@ const BookTravelPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Policy Warning Dialog */}
+      <PolicyWarningDialog
+        isOpen={showPolicyWarning}
+        onClose={handlePolicyWarningCancel}
+        onConfirm={handlePolicyWarningConfirm}
+        evaluation={policyEvaluation}
+        trainOffer={pendingBooking?.offer}
+      />
     </Layout>
   );
 };

@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  policy-engine:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/policy_engine
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - .:/app
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--debug"]
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=policy_engine
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+
+volumes:
+  postgres_data:

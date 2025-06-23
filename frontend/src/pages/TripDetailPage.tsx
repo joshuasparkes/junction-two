@@ -5,8 +5,6 @@ import { getTripById } from '../services/tripService';
 import { getTripBookings } from '../services/supabaseBookingService';
 import { Trip, Booking } from '../lib/supabase';
 
-// Remove old interface since we're using the one from supabase
-
 const TripDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -50,6 +48,36 @@ const TripDetailPage: React.FC = () => {
   const handleAddBooking = (type: 'flight' | 'rail') => {
     const tab = type === 'flight' ? 'flights' : 'rail';
     navigate(`/book?tab=${tab}&tripId=${id}`);
+  };
+
+  const handleConfirmBooking = (booking: Booking) => {
+    // Navigate to payment page with booking details
+    navigate('/payment', {
+      state: {
+        booking: {
+          id: booking.junction_booking_id,
+          status: booking.status,
+          price: {
+            amount: booking.total_amount,
+            currency: booking.currency
+          },
+          passengers: booking.passengers_data,
+          trips: booking.trips_data,
+          priceBreakdown: booking.price_breakdown,
+          fullJunctionResponse: booking.junction_response
+        },
+        // Reconstruct offer data from booking
+        offer: booking.junction_response?.offerData || {
+          id: booking.junction_response?.offer,
+          price: {
+            amount: booking.total_amount,
+            currency: booking.currency
+          }
+        },
+        isReturn: false,
+        supabaseBookingId: booking.id // Pass the Supabase booking ID for status updates
+      }
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -113,8 +141,8 @@ const TripDetailPage: React.FC = () => {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-lg text-gray-600">Loading trip...</span>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
+          <span className="ml-3 content-text text-chatgpt-text-secondary">Loading trip...</span>
         </div>
       </Layout>
     );
@@ -123,10 +151,10 @@ const TripDetailPage: React.FC = () => {
   if (!trip) {
     return (
       <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Trip not found</h1>
-            <Link to="/trips" className="text-blue-600 hover:text-blue-700 mt-4 inline-block">
+            <h1 className="title-text font-normal text-chatgpt-text-primary">Trip not found</h1>
+            <Link to="/trips" className="sidebar-text text-gray-600 hover:text-gray-900 mt-4 inline-block transition-colors">
               Back to trips
             </Link>
           </div>
@@ -137,20 +165,20 @@ const TripDetailPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <Link 
             to="/trips" 
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium mb-4 inline-flex items-center"
+            className="sidebar-text text-gray-600 hover:text-gray-900 mb-4 inline-flex items-center transition-colors"
           >
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back to trips
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">{trip.name || 'Trip Details'}</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="title-text font-normal text-chatgpt-text-primary mb-2">{trip.name || 'Trip Details'}</h1>
+          <p className="content-text text-chatgpt-text-secondary">
             {trip.start_date && trip.end_date 
               ? `${new Date(trip.start_date).toLocaleDateString()} - ${new Date(trip.end_date).toLocaleDateString()}`
               : 'Dates not set'
@@ -160,13 +188,13 @@ const TripDetailPage: React.FC = () => {
 
         <div className="space-y-8">
             {/* Bookings Section */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Bookings</h2>
+            <div className="bg-white border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="title-text font-normal text-chatgpt-text-primary">Bookings</h2>
                 <div className="relative">
                   <button
                     onClick={() => setShowAddBooking(!showAddBooking)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="chatgpt-primary-button inline-flex items-center justify-center"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -176,11 +204,11 @@ const TripDetailPage: React.FC = () => {
 
                   {/* Dropdown Menu */}
                   {showAddBooking && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                      <div className="py-1">
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 shadow-lg z-10">
+                      <div className="p-2">
                         <button
                           onClick={() => handleAddBooking('flight')}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                          className="w-full text-left p-2 sidebar-text text-gray-700 hover:bg-gray-50 rounded-md flex items-center transition-colors"
                         >
                           <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -189,7 +217,7 @@ const TripDetailPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => handleAddBooking('rail')}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                          className="w-full text-left p-2 sidebar-text text-gray-700 hover:bg-gray-50 rounded-md flex items-center transition-colors"
                         >
                           <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 01.553-.894L9 2l6 3 6-3v15l-6 3-6-3z" />
@@ -202,82 +230,88 @@ const TripDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-6">
-                {loadingBookings ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-sm text-gray-500">Loading bookings...</p>
-                  </div>
-                ) : bookings.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings yet</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by adding your first booking.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {bookings.map((booking) => {
-                      const details = getBookingDetails(booking);
-                      return (
-                        <div key={booking.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3">
-                              <div className="flex-shrink-0 mt-1">
-                                {getTypeIcon()}
+              {loadingBookings ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto"></div>
+                  <p className="mt-2 sidebar-text text-chatgpt-text-secondary">Loading bookings...</p>
+                </div>
+              ) : bookings.length === 0 ? (
+                <div className="text-center py-8">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <h3 className="mt-2 sidebar-text font-normal text-chatgpt-text-primary">No bookings yet</h3>
+                  <p className="mt-1 sidebar-text text-chatgpt-text-secondary">Get started by adding your first booking.</p>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {bookings.map((booking) => {
+                    const details = getBookingDetails(booking);
+                    return (
+                      <div key={booking.id} className="p-3 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3">
+                            <div className="flex-shrink-0 mt-1">
+                              {getTypeIcon()}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <h3 className="content-text font-normal text-chatgpt-text-primary">
+                                  Train Journey #{booking.junction_booking_id?.slice(-8)}
+                                </h3>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full sidebar-text ${getStatusColor(booking.status)} whitespace-nowrap`}>
+                                  {booking.status === 'pending-payment' ? 'Pending Payment' : booking.status}
+                                </span>
                               </div>
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <h3 className="text-sm font-medium text-gray-900">
-                                    Train Journey #{booking.junction_booking_id?.slice(-8)}
-                                  </h3>
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                                    {booking.status}
-                                  </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+                                <div>
+                                  <p className="sidebar-text font-normal text-chatgpt-text-primary">{details.departure.location}</p>
+                                  <p className="sidebar-text text-chatgpt-text-secondary">{details.departure.time} • {details.departure.date}</p>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-gray-900 font-medium">{details.departure.location}</p>
-                                    <p className="text-gray-600">{details.departure.time} • {details.departure.date}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-900 font-medium">{details.arrival.location}</p>
-                                    <p className="text-gray-600">{details.arrival.time} • {details.arrival.date}</p>
-                                  </div>
+                                <div>
+                                  <p className="sidebar-text font-normal text-chatgpt-text-primary">{details.arrival.location}</p>
+                                  <p className="sidebar-text text-chatgpt-text-secondary">{details.arrival.time} • {details.arrival.date}</p>
                                 </div>
-                                <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4 sidebar-text text-gray-500">
                                   <span>Operator: {details.operator}</span>
                                   <span>Class: {details.class}</span>
                                   {booking.delivery_option && <span>Delivery: {booking.delivery_option}</span>}
                                 </div>
                                 {booking.ticket_url && (
-                                  <div className="mt-2">
-                                    <a 
-                                      href={booking.ticket_url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:text-blue-700"
-                                    >
-                                      Download Ticket
-                                    </a>
-                                  </div>
+                                  <a 
+                                    href={booking.ticket_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="sidebar-text text-blue-600 hover:text-blue-700 transition-colors duration-200"
+                                  >
+                                    Download Ticket
+                                  </a>
                                 )}
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-lg font-semibold text-gray-900">{booking.currency}{booking.total_amount}</p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {booking.created_at ? new Date(booking.created_at).toLocaleDateString() : 'N/A'}
-                              </p>
-                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="content-text font-normal text-chatgpt-text-primary">{booking.currency}{booking.total_amount}</p>
+                            <p className="sidebar-text text-chatgpt-text-secondary mt-1">
+                              {booking.created_at ? new Date(booking.created_at).toLocaleDateString() : 'N/A'}
+                            </p>
+                            {booking.status === 'pending-payment' && (
+                              <button
+                                onClick={() => handleConfirmBooking(booking)}
+                                className="mt-2 chatgpt-button sidebar-text"
+                              >
+                                Confirm & Book
+                              </button>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
         </div>
       </div>

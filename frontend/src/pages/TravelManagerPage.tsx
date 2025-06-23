@@ -18,13 +18,13 @@ import type { Trip } from "../lib/supabase";
 import {
   CompanyProfile,
   PeopleManagement,
-  TravelPolicies,
   PaymentMethods,
   CreateUserModal,
   InviteUserModal,
   TripManagement,
   ReportingManagement
 } from "../components/travel-manager";
+import PolicyManagement from "../components/travel-manager/PolicyManagement";
 
 const TravelManagerPage: React.FC = () => {
   const { currentOrganization } = useAuth();
@@ -435,10 +435,8 @@ const TravelManagerPage: React.FC = () => {
 
             {/* Policies Tab */}
             {activeMainTab === "policies" && (
-              <TravelPolicies
-                organizationPolicies={organizationPolicies}
-                policyGroups={policyGroups}
-                outOfPolicyReasons={outOfPolicyReasons}
+              <PolicyManagement
+                currentOrganization={currentOrganization}
               />
             )}
 
